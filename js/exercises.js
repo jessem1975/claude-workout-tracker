@@ -10,7 +10,7 @@ const EXERCISES = {
   'db-bench-press': {
     id: 'db-bench-press', name: 'Dumbbell Bench Press', category: 'push', type: 'weight',
     sets: 3, repRange: [8, 12], restSec: 90, increment: 5,
-    caution: 'Lower only to where your left shoulder feels neutral, not to full stretch. Stop the descent if you feel pinching.'
+    caution: 'Lower only to where your shoulder feels neutral, not to full stretch. Stop the descent if you feel pinching.'
   },
   'incline-db-press': {
     id: 'incline-db-press', name: 'Incline Dumbbell Press', category: 'push', type: 'weight',
@@ -20,7 +20,7 @@ const EXERCISES = {
   'cable-fly': {
     id: 'cable-fly', name: 'Cable Chest Fly (low-to-high)', category: 'push', type: 'weight',
     sets: 3, repRange: [10, 15], restSec: 60, increment: 2.5,
-    caution: 'Set pulleys low so the path travels upward across the body — keeps the left shoulder out of the aggravating stretched-behind position.'
+    caution: 'Set pulleys low so the path travels upward across the body — keeps your shoulder out of the aggravating stretched-behind position.'
   },
   'db-lateral-raise': {
     id: 'db-lateral-raise', name: 'Dumbbell Lateral Raise', category: 'push', type: 'weight',
@@ -47,7 +47,7 @@ const EXERCISES = {
   'lat-pulldown': {
     id: 'lat-pulldown', name: 'Lat Pulldown (neutral or wide grip)', category: 'pull', type: 'weight',
     sets: 3, repRange: [8, 12], restSec: 90, increment: 5,
-    caution: 'Neutral/close grip is easier on the left shoulder than a wide pronated grip. Pull to the collarbone, not behind the neck.'
+    caution: 'Neutral/close grip is easier on your shoulder than a wide pronated grip. Pull to the collarbone, not behind the neck.'
   },
   'seated-cable-row': {
     id: 'seated-cable-row', name: 'Seated Cable Row (neutral grip)', category: 'pull', type: 'weight',
@@ -89,7 +89,7 @@ const EXERCISES = {
   'leg-press': {
     id: 'leg-press', name: 'Leg Press (partial, pain-free range)', category: 'legs', type: 'weight',
     sets: 3, repRange: [10, 15], restSec: 120, increment: 20,
-    caution: 'Only go as deep as your right knee is pain-free — a partial rep with no pain beats a full rep with pinching under the kneecap.'
+    caution: 'Only go as deep as your knee is pain-free — a partial rep with no pain beats a full rep with pinching under the kneecap.'
   },
   'romanian-deadlift': {
     id: 'romanian-deadlift', name: 'Romanian Deadlift', category: 'legs', type: 'weight',
@@ -104,7 +104,7 @@ const EXERCISES = {
   'walking-lunge': {
     id: 'walking-lunge', name: 'Walking Lunge', category: 'legs', type: 'weight',
     sets: 3, repRange: [8, 12], restSec: 90, increment: 5,
-    caution: 'Shorter stride keeps the front knee from traveling far past the toes. Skip or shorten range on days the right knee is cranky.'
+    caution: 'Shorter stride keeps the front knee from traveling far past the toes. Skip or shorten range on days your knee is cranky.'
   },
   'seated-leg-curl': {
     id: 'seated-leg-curl', name: 'Seated Leg Curl', category: 'legs', type: 'weight',
@@ -119,7 +119,7 @@ const EXERCISES = {
   'wall-sit': {
     id: 'wall-sit', name: 'Wall Sit (isometric)', category: 'rehab', type: 'time',
     sets: 3, timeRange: [30, 60], restSec: 60, timeIncrement: 5,
-    caution: 'Thighs roughly parallel to the floor, or shallower if that is where the right knee is pain-free.'
+    caution: 'Thighs roughly parallel to the floor, or shallower if that is where your knee is pain-free.'
   },
   'standing-calf-raise': {
     id: 'standing-calf-raise', name: 'Standing Calf Raise', category: 'legs', type: 'weight',
@@ -146,7 +146,7 @@ const EXERCISES = {
   'bike-intervals': {
     id: 'bike-intervals', name: 'Stationary Bike Intervals', category: 'conditioning', type: 'time',
     sets: 6, timeRange: [30, 60], restSec: 60, timeIncrement: 5,
-    caution: 'Low-impact cardio that spares the right knee. Hard effort on the work interval, easy spin on the rest.'
+    caution: 'Low-impact cardio that spares your knee. Hard effort on the work interval, easy spin on the rest.'
   },
   'farmers-carry': {
     id: 'farmers-carry', name: "Farmer's Carry", category: 'conditioning', type: 'time',
