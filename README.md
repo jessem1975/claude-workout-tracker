@@ -1,10 +1,10 @@
 # Workout Tracker
 
 A phone-friendly, installable workout tracker built around a 6-day push/pull/legs
-rotation, tailored for a 50-year-old lifter training around a left rotator cuff
-injury and a right patellar tendon issue, with a lean/athletic body-composition
-goal. Runs entirely in the browser — no account, no server, no internet required
-after the first load. All data stays on your phone (localStorage).
+rotation, with built-in substitutions and cautions for a shoulder (rotator cuff)
+issue and a knee (patellar tendon) issue. Runs entirely in the browser — no
+account, no server, no internet required after the first load. All data stays
+on your phone (localStorage).
 
 ## Running it
 
