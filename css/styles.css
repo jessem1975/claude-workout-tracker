@@ -1,0 +1,234 @@
+:root {
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --surface-2: #273449;
+  --text: #f1f5f9;
+  --muted: #94a3b8;
+  --accent: #14b8a6;
+  --accent-dark: #0f766e;
+  --warn: #fbbf24;
+  --danger: #f87171;
+  --done: #134e3a;
+  --radius: 14px;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --surface-2: #f1f5f9;
+    --text: #0f172a;
+    --muted: #64748b;
+    --done: #d1fae5;
+    color-scheme: light;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  padding-bottom: 76px; /* leave room for bottom nav */
+  min-height: 100vh;
+}
+
+#app {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 16px 16px 24px;
+}
+
+h1 { font-size: 1.5rem; margin: 0 0 4px; }
+h2 { font-size: 1.1rem; margin: 0 0 10px; }
+h3 { font-size: 1.05rem; margin: 0; }
+p { margin: 6px 0; }
+.muted { color: var(--muted); font-size: 0.9rem; }
+
+.card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.btn {
+  display: inline-block;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--surface-2);
+  color: var(--text);
+  text-decoration: none;
+  text-align: center;
+}
+.btn.primary { background: var(--accent); color: #04231f; }
+.btn.subtle { background: transparent; color: var(--muted); font-weight: 400; }
+.btn.big { display: block; width: 100%; padding: 16px; font-size: 1.05rem; margin-top: 12px; }
+.btn.small { padding: 8px 10px; font-size: 0.85rem; }
+
+.link-btn {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.day-banner {
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin: 10px 0;
+}
+.day-name { font-size: 1.2rem; font-weight: 700; }
+.day-focus { color: var(--muted); font-size: 0.9rem; }
+
+.rotation-list { padding-left: 20px; margin: 0; }
+.rotation-list li { padding: 4px 0; color: var(--muted); }
+.rotation-list li.current { color: var(--accent); font-weight: 700; }
+
+.session-header { display: flex; flex-direction: column; align-items: flex-start; }
+
+.exercise-card { position: relative; }
+.exercise-card.complete { border: 2px solid var(--accent); }
+.exercise-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.caution {
+  background: rgba(251, 191, 36, 0.12);
+  border-left: 3px solid var(--warn);
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+.suggestion {
+  background: rgba(20, 184, 166, 0.12);
+  border-left: 3px solid var(--accent);
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.set-rows { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.set-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 8px 10px;
+  flex-wrap: wrap;
+}
+.set-row.done { background: var(--done); }
+.set-num {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--surface);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.8rem; font-weight: 700; flex-shrink: 0;
+}
+.set-row .input {
+  width: 56px;
+  padding: 8px 6px;
+  border-radius: 8px;
+  border: 1px solid var(--surface);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1rem;
+  text-align: center;
+}
+.set-row .unit { font-size: 0.75rem; color: var(--muted); }
+.set-row .target, .set-row .timer-display { font-size: 0.85rem; color: var(--muted); min-width: 60px; }
+.set-row button[data-action="log"] { margin-left: auto; }
+
+.settings-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--surface-2);
+}
+.settings-row select, .settings-row input[type="number"] {
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--surface-2);
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.session-log { list-style: none; padding: 0; margin: 0; }
+.session-log li {
+  display: flex;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--surface-2);
+  font-size: 0.9rem;
+}
+.session-log .date { color: var(--muted); min-width: 90px; }
+
+#exercise-picker {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--surface-2);
+  margin-bottom: 10px;
+}
+
+.trend-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.trend-table th, .trend-table td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--surface-2); }
+
+.bottom-nav {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  display: flex;
+  background: var(--surface);
+  border-top: 1px solid var(--surface-2);
+  padding-bottom: env(safe-area-inset-bottom);
+  z-index: 20;
+}
+.bottom-nav a {
+  flex: 1;
+  text-align: center;
+  padding: 12px 4px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.bottom-nav a.active { color: var(--accent); }
+
+.rest-banner {
+  position: fixed;
+  left: 0; right: 0;
+  bottom: 60px;
+  margin: 0 12px;
+  background: var(--accent-dark);
+  color: #ecfeff;
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  z-index: 30;
+  transition: opacity 0.2s;
+}
+.rest-banner.hidden { display: none; }
+.rest-banner.rest-done { background: var(--accent); color: #04231f; }
+.rest-info { display: flex; flex-direction: column; }
+.rest-time { font-size: 1.4rem; font-weight: 800; }
+.rest-actions { display: flex; gap: 8px; }
+.rest-actions .btn { background: rgba(255,255,255,0.15); color: inherit; }
