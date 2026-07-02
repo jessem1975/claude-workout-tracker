@@ -39,6 +39,7 @@ const Session = {
       dayIndex,
       dayId: day.id,
       startedAt: new Date().toISOString(),
+      currentExerciseIndex: 0,
       entries
     };
     Storage.saveActiveSession(session);
@@ -66,6 +67,13 @@ const Session = {
     const isLastExercise = exerciseIds.indexOf(exerciseId) === exerciseIds.length - 1;
     const isLastSetOfExercise = setIndex === session.entries[exerciseId].sets.length - 1;
     return isLastExercise && isLastSetOfExercise;
+  },
+
+  goToExercise(session, index) {
+    const exerciseIds = Object.keys(session.entries);
+    session.currentExerciseIndex = Math.max(0, Math.min(index, exerciseIds.length - 1));
+    Storage.saveActiveSession(session);
+    return session;
   },
 
   finish(session) {

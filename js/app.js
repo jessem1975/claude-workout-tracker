@@ -104,7 +104,7 @@ const App = {
     return (now - d) / 86400000 <= days;
   },
 
-  // ---------------- SESSION ----------------
+  // ---------------- SESSION (one exercise at a time) ----------------
   renderSession(app) {
     const session = Session.getActive();
     if (!session) {
@@ -113,29 +113,55 @@ const App = {
     }
     const day = PLAN[session.dayIndex];
     const exerciseIds = Object.keys(session.entries);
+    const idx = Math.max(0, Math.min(session.currentExerciseIndex || 0, exerciseIds.length - 1));
+    const exerciseId = exerciseIds[idx];
+    const isFirst = idx === 0;
+    const isLast = idx === exerciseIds.length - 1;
 
     app.innerHTML = `
       <section class="card session-header">
-        <h1>${day.label}</h1>
-        <p class="muted">${day.focus}</p>
-        <button class="btn subtle" id="discard-btn">Discard session</button>
+        <div class="session-top-row">
+          <h1>${day.label}</h1>
+          <button class="btn subtle" id="discard-btn">Discard</button>
+        </div>
+        <p class="exercise-progress">Exercise ${idx + 1} of ${exerciseIds.length}</p>
+        <div class="exercise-dots">
+          ${exerciseIds.map((id, i) => `
+            <button class="dot ${i === idx ? 'active' : ''} ${Session.isExerciseComplete(session, id) ? 'done' : ''}" data-jump="${i}">${i + 1}</button>
+          `).join('')}
+        </div>
       </section>
-      <div id="exercise-list"></div>
-      <section class="card">
-        <button class="btn primary big" id="finish-btn">Finish Workout</button>
+      <div id="exercise-card-holder"></div>
+      <section class="card nav-row">
+        <button class="btn huge" id="prev-btn" ${isFirst ? 'disabled' : ''}>&larr; Prev</button>
+        <button class="btn primary huge" id="${isLast ? 'finish-btn' : 'next-btn'}">${isLast ? 'Finish Workout' : 'Next →'}</button>
       </section>
+      ${!isLast ? '<section class="card"><button class="btn subtle full" id="finish-early-btn">Finish workout now</button></section>' : ''}
     `;
 
-    const list = document.getElementById('exercise-list');
-    exerciseIds.forEach((exerciseId) => {
-      list.appendChild(this._renderExerciseCard(session, exerciseId));
-    });
+    document.getElementById('exercise-card-holder').appendChild(this._renderExerciseCard(session, exerciseId));
 
-    document.getElementById('finish-btn').addEventListener('click', () => {
-      Session.finish(session);
-      this._clearRestTimer();
-      this.navigate('/');
+    document.querySelectorAll('[data-jump]').forEach((dot) => {
+      dot.addEventListener('click', () => {
+        Session.goToExercise(session, parseInt(dot.dataset.jump, 10));
+        this.renderSession(app);
+      });
     });
+    const prevBtn = document.getElementById('prev-btn');
+    if (prevBtn) prevBtn.addEventListener('click', () => {
+      Session.goToExercise(session, idx - 1);
+      this.renderSession(app);
+    });
+    const nextBtn = document.getElementById('next-btn');
+    if (nextBtn) nextBtn.addEventListener('click', () => {
+      Session.goToExercise(session, idx + 1);
+      this.renderSession(app);
+    });
+    const finishEarlyBtn = document.getElementById('finish-early-btn');
+    if (finishEarlyBtn) finishEarlyBtn.addEventListener('click', () => this._finishWorkout(session));
+    const finishBtn = document.getElementById('finish-btn');
+    if (finishBtn) finishBtn.addEventListener('click', () => this._finishWorkout(session));
+
     document.getElementById('discard-btn').addEventListener('click', () => {
       if (confirm('Discard this in-progress workout? Nothing will be saved.')) {
         Session.discard();
@@ -143,6 +169,12 @@ const App = {
         this.navigate('/');
       }
     });
+  },
+
+  _finishWorkout(session) {
+    Session.finish(session);
+    this._clearRestTimer();
+    this.navigate('/');
   },
 
   _renderExerciseCard(session, exerciseId) {
@@ -155,7 +187,7 @@ const App = {
     card.className = 'card exercise-card' + (complete ? ' complete' : '');
     card.innerHTML = `
       <div class="exercise-head">
-        <h3>${exercise.name}</h3>
+        <h2>${exercise.name}</h2>
         <a href="#/exercise/${exerciseId}" class="link-btn">Details${video ? ' & video' : ''}</a>
       </div>
       ${exercise.caution ? `<p class="caution">⚠ ${exercise.caution}</p>` : ''}
@@ -205,9 +237,15 @@ const App = {
         values[input.dataset.field] = isNaN(v) ? (exercise.type === 'time' ? set.targetDuration : 0) : v;
       });
       Session.logSet(session, exerciseId, setIndex, values);
-      const isLast = Session.isLastSet(session, exerciseId, setIndex);
+      const isLastSet = Session.isLastSet(session, exerciseId, setIndex);
+      const exerciseIds = Object.keys(session.entries);
+      const exerciseJustCompleted = Session.isExerciseComplete(session, exerciseId);
+      const isLastExercise = exerciseIds.indexOf(exerciseId) === exerciseIds.length - 1;
+      if (exerciseJustCompleted && !isLastExercise) {
+        Session.goToExercise(session, exerciseIds.indexOf(exerciseId) + 1);
+      }
       this.renderSession(document.getElementById('app'));
-      if (!isLast) this._startRestTimer(exercise.restSec);
+      if (!isLastSet) this._startRestTimer(exercise.restSec);
     });
 
     const timerBtn = row.querySelector('[data-action="timer-toggle"]');
