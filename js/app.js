@@ -55,6 +55,8 @@ const App = {
     const log = Storage.getSessionLog();
     const last7 = log.filter((s) => this._withinDays(s.date, 7));
 
+    const showBackupBanner = Storage.isBackupDue() && Storage.canPromptForBackup();
+
     app.innerHTML = `
       <section class="card">
         <h1>Workout Tracker</h1>
@@ -68,6 +70,16 @@ const App = {
           : `<button class="btn primary big" id="rest-btn">Mark Rest Day Done</button>`
         }
       </section>
+
+      ${showBackupBanner ? `
+      <section class="card backup-banner">
+        <h2>Weekly backup</h2>
+        <p class="muted">Save your workout history somewhere safe (like iCloud Drive) in case you ever delete the app.</p>
+        <div class="nav-row">
+          <button class="btn subtle" id="backup-later-btn">Not now</button>
+          <button class="btn primary" id="backup-now-btn">Back Up Now</button>
+        </div>
+      </section>` : ''}
 
       <section class="card">
         <h2>This week</h2>
@@ -102,12 +114,71 @@ const App = {
         this.render();
       });
     }
+    const backupNowBtn = document.getElementById('backup-now-btn');
+    if (backupNowBtn) {
+      backupNowBtn.addEventListener('click', () => this._runBackup().then(() => this.render()));
+    }
+    const backupLaterBtn = document.getElementById('backup-later-btn');
+    if (backupLaterBtn) {
+      backupLaterBtn.addEventListener('click', () => {
+        Storage.markPromptedNow();
+        this.render();
+      });
+    }
   },
 
   _withinDays(dateStr, days) {
     const d = new Date(dateStr);
     const now = new Date();
     return (now - d) / 86400000 <= days;
+  },
+
+  // ---------------- BACKUP / RESTORE ----------------
+  async _runBackup() {
+    const data = Storage.exportAll();
+    const json = JSON.stringify(data, null, 2);
+    const filename = `workout-tracker-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    const blob = new Blob([json], { type: 'application/json' });
+
+    try {
+      const file = new File([blob], filename, { type: 'application/json' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'Workout Tracker Backup' });
+        Storage.markBackedUpNow();
+        return true;
+      }
+    } catch (e) {
+      if (e && e.name === 'AbortError') return false; // user cancelled the share sheet
+    }
+
+    // fallback for browsers without file-sharing support: plain download
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    Storage.markBackedUpNow();
+    return true;
+  },
+
+  _importBackupFile(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        if (!confirm('Restore this backup? This replaces all current data on this device.')) return;
+        Storage.importAll(data);
+        alert('Backup restored.');
+        this.navigate('/');
+        this.render();
+      } catch (e) {
+        alert("Couldn't read that backup file: " + e.message);
+      }
+    };
+    reader.readAsText(file);
   },
 
   // ---------------- SESSION (one exercise at a time) ----------------
@@ -470,6 +541,13 @@ const App = {
         </label>
       </section>
       <section class="card">
+        <h2>Backup</h2>
+        <p class="muted">${this._lastBackupText()}</p>
+        <button class="btn primary full" id="backup-settings-btn">Back Up Now</button>
+        <button class="btn full" id="restore-settings-btn">Restore from Backup</button>
+        <input type="file" id="restore-file-input" accept="application/json" class="hidden">
+      </section>
+      <section class="card">
         <h2>Data</h2>
         <button class="btn subtle" id="reset-data">Reset all data</button>
       </section>
@@ -485,6 +563,14 @@ const App = {
     ['units', 'sound', 'vibration', 'extra-rest'].forEach((id) => {
       document.getElementById(id).addEventListener('change', save);
     });
+    document.getElementById('backup-settings-btn').addEventListener('click', () => {
+      this._runBackup().then(() => this.render());
+    });
+    const fileInput = document.getElementById('restore-file-input');
+    document.getElementById('restore-settings-btn').addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files[0]) this._importBackupFile(fileInput.files[0]);
+    });
     document.getElementById('reset-data').addEventListener('click', () => {
       if (confirm('This clears all logged workouts and settings on this device. Continue?')) {
         Object.values(STORAGE_KEYS).forEach((key) => localStorage.removeItem(key));
@@ -492,6 +578,15 @@ const App = {
         this.render();
       }
     });
+  },
+
+  _lastBackupText() {
+    const last = Storage.getLastBackupAt();
+    if (!last) return 'Never backed up.';
+    const days = Math.floor((Date.now() - last) / 86400000);
+    if (days <= 0) return 'Last backed up today.';
+    if (days === 1) return 'Last backed up yesterday.';
+    return `Last backed up ${days} days ago.`;
   }
 };
 
