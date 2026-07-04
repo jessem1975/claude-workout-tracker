@@ -211,8 +211,16 @@ const App = {
       </section>
       <div id="exercise-card-holder"></div>
       <section class="card nav-row">
-        <button class="btn huge" id="prev-btn" ${isFirst ? 'disabled' : ''}>&larr; Prev</button>
-        <button class="btn primary huge" id="${isLast ? 'finish-btn' : 'next-btn'}">${isLast ? 'Finish Workout' : 'Next →'}</button>
+        <button class="btn huge nav-btn" id="prev-btn" ${isFirst ? 'disabled' : ''}>
+          <span class="nav-btn-arrow">&larr; Prev</span>
+          ${!isFirst ? `<span class="nav-btn-name">${EXERCISES[exerciseIds[idx - 1]].name}</span>` : ''}
+        </button>
+        <button class="btn primary huge nav-btn" id="${isLast ? 'finish-btn' : 'next-btn'}">
+          ${isLast
+            ? '<span class="nav-btn-arrow">Finish Workout</span>'
+            : `<span class="nav-btn-arrow">Next &rarr;</span><span class="nav-btn-name">${EXERCISES[exerciseIds[idx + 1]].name}</span>`
+          }
+        </button>
       </section>
       ${!isLast ? '<section class="card"><button class="btn subtle full" id="finish-early-btn">Finish workout now</button></section>' : ''}
     `;
@@ -642,11 +650,32 @@ const App = {
     if (days <= 0) return 'Last backed up today.';
     if (days === 1) return 'Last backed up yesterday.';
     return `Last backed up ${days} days ago.`;
+  },
+
+  // ---------------- WAKE LOCK ----------------
+  // Keep the screen on for as long as the app stays open, not just during
+  // rest timers. The OS releases the lock whenever the tab is backgrounded,
+  // so it has to be re-requested every time the app comes back to the front.
+  initWakeLock() {
+    const requestLock = async () => {
+      try {
+        if ('wakeLock' in navigator && document.visibilityState === 'visible') {
+          this._appWakeLock = await navigator.wakeLock.request('screen');
+        }
+      } catch (e) {
+        // not supported, or the browser refused it — nothing to do
+      }
+    };
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') requestLock();
+    });
+    requestLock();
   }
 };
 
 document.addEventListener('DOMContentLoaded', () => {
   App.initRestBanner();
   App.initVideoModal();
+  App.initWakeLock();
   App.init();
 });

@@ -88,6 +88,9 @@ p { margin: 8px 0; }
 .btn.subtle { background: transparent; color: var(--muted); font-weight: 400; min-height: auto; }
 .btn.big { display: block; width: 100%; padding: 18px; font-size: 1.25rem; margin-top: 12px; }
 .btn.huge { flex: 1; padding: 22px 12px; font-size: 1.35rem; min-height: 64px; }
+.btn.nav-btn { display: flex; flex-direction: column; align-items: center; gap: 4px; line-height: 1.2; }
+.nav-btn-arrow { font-size: 1.05rem; opacity: 0.85; }
+.nav-btn-name { font-size: 1.05rem; font-weight: 700; }
 .btn.full { display: block; width: 100%; }
 .btn.small { padding: 12px 14px; font-size: 1rem; min-height: 44px; }
 .btn:disabled { opacity: 0.35; cursor: default; }
