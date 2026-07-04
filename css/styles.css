@@ -199,6 +199,8 @@ p { margin: 8px 0; }
 .set-row .target, .set-row .timer-display { font-size: 1rem; color: var(--muted); min-width: 70px; }
 .set-row button[data-action="log"] { margin-left: auto; }
 
+.hidden { display: none; }
+
 .settings-row {
   display: flex;
   justify-content: space-between;

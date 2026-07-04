@@ -6,8 +6,13 @@ const STORAGE_KEYS = {
   history: 'wt_history_v1',
   session: 'wt_session_v1',
   meta: 'wt_meta_v1',
-  log: 'wt_sessionlog_v1'
+  log: 'wt_sessionlog_v1',
+  lastBackupAt: 'wt_lastbackup_v1',
+  lastPromptedAt: 'wt_lastprompted_v1'
 };
+
+const BACKUP_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000; // weekly
+const PROMPT_COOLDOWN_MS = 24 * 60 * 60 * 1000; // don't nag more than once a day
 
 const DEFAULT_SETTINGS = {
   units: 'lb',
@@ -83,6 +88,58 @@ const Storage = {
     log.push(summary);
     if (log.length > 100) log.shift();
     this._write(STORAGE_KEYS.log, log);
+  },
+
+  hasAnyLoggedData() {
+    return Object.keys(this.getHistory()).length > 0 || this.getSessionLog().length > 0;
+  },
+
+  getLastBackupAt() {
+    return this._read(STORAGE_KEYS.lastBackupAt, null);
+  },
+  markBackedUpNow() {
+    this._write(STORAGE_KEYS.lastBackupAt, Date.now());
+  },
+  getLastPromptedAt() {
+    return this._read(STORAGE_KEYS.lastPromptedAt, null);
+  },
+  markPromptedNow() {
+    this._write(STORAGE_KEYS.lastPromptedAt, Date.now());
+  },
+  isBackupDue() {
+    if (!this.hasAnyLoggedData()) return false;
+    const last = this.getLastBackupAt();
+    if (!last) return true;
+    return Date.now() - last >= BACKUP_INTERVAL_MS;
+  },
+  canPromptForBackup() {
+    const last = this.getLastPromptedAt();
+    if (!last) return true;
+    return Date.now() - last >= PROMPT_COOLDOWN_MS;
+  },
+
+  exportAll() {
+    return {
+      schema: 'workout-tracker-backup',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      settings: this.getSettings(),
+      history: this.getHistory(),
+      meta: this.getMeta(),
+      sessionLog: this.getSessionLog(),
+      activeSession: this.getActiveSession()
+    };
+  },
+  importAll(data) {
+    if (!data || data.schema !== 'workout-tracker-backup') {
+      throw new Error('This file doesn\'t look like a Workout Tracker backup.');
+    }
+    if (data.settings) this._write(STORAGE_KEYS.settings, data.settings);
+    if (data.history) this._write(STORAGE_KEYS.history, data.history);
+    if (data.meta) this._write(STORAGE_KEYS.meta, data.meta);
+    if (data.sessionLog) this._write(STORAGE_KEYS.log, data.sessionLog);
+    if (data.activeSession) this._write(STORAGE_KEYS.session, data.activeSession);
+    else localStorage.removeItem(STORAGE_KEYS.session);
   }
 };
 
