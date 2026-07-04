@@ -220,6 +220,7 @@ const App = {
     const set = session.entries[exerciseId].sets[setIndex];
     const row = document.createElement('div');
     row.className = 'set-row' + (set.done ? ' done' : '');
+    row.dataset.setIndex = String(setIndex);
 
     if (exercise.type === 'time') {
       const target = set.targetDuration;
@@ -272,16 +273,27 @@ const App = {
 
     // Typing a value into one set fills the same value into the other
     // not-yet-logged sets of this exercise, since most sets use the same
-    // weight/reps (or duration) — saves re-typing for every set.
+    // weight/reps (or duration) — saves re-typing for every set. This has
+    // to update the underlying session data too, not just the visible
+    // input, or the propagated values vanish the moment the view re-renders
+    // (e.g. right after logging a set).
     row.querySelectorAll('[data-field]').forEach((input) => {
       input.addEventListener('input', () => {
         const container = row.parentElement;
         if (!container) return;
+        const field = input.dataset.field;
         container.querySelectorAll('.set-row').forEach((sibling) => {
           if (sibling === row || sibling.classList.contains('done')) return;
-          const match = sibling.querySelector(`[data-field="${input.dataset.field}"]`);
+          const match = sibling.querySelector(`[data-field="${field}"]`);
           if (match) match.value = input.value;
+          const siblingIndex = parseInt(sibling.dataset.setIndex, 10);
+          const siblingSet = session.entries[exerciseId].sets[siblingIndex];
+          if (siblingSet && !siblingSet.done) {
+            const v = parseFloat(input.value);
+            siblingSet[field] = isNaN(v) ? null : v;
+          }
         });
+        Storage.saveActiveSession(session);
       });
     });
 
