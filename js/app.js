@@ -77,7 +77,13 @@ const App = {
       <section class="card">
         <h2>Upcoming rotation</h2>
         <ol class="rotation-list">
-          ${PLAN.map((d, i) => `<li class="${i === nextIndex ? 'current' : ''}">${d.label}</li>`).join('')}
+          ${PLAN.map((d, i) => {
+            const isCurrent = i === nextIndex;
+            const sublist = isCurrent && d.exercises.length
+              ? `<ul class="exercise-sublist">${d.exercises.map((id) => `<li>${EXERCISES[id].name}</li>`).join('')}</ul>`
+              : '';
+            return `<li class="${isCurrent ? 'current' : ''}">${d.label}${sublist}</li>`;
+          }).join('')}
         </ol>
       </section>
     `;
