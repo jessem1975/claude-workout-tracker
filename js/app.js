@@ -145,17 +145,20 @@ const App = {
       dot.addEventListener('click', () => {
         Session.goToExercise(session, parseInt(dot.dataset.jump, 10));
         this.renderSession(app);
+        this._scrollToTop();
       });
     });
     const prevBtn = document.getElementById('prev-btn');
     if (prevBtn) prevBtn.addEventListener('click', () => {
       Session.goToExercise(session, idx - 1);
       this.renderSession(app);
+      this._scrollToTop();
     });
     const nextBtn = document.getElementById('next-btn');
     if (nextBtn) nextBtn.addEventListener('click', () => {
       Session.goToExercise(session, idx + 1);
       this.renderSession(app);
+      this._scrollToTop();
     });
     const finishEarlyBtn = document.getElementById('finish-early-btn');
     if (finishEarlyBtn) finishEarlyBtn.addEventListener('click', () => this._finishWorkout(session));
@@ -175,6 +178,10 @@ const App = {
     Session.finish(session);
     this._clearRestTimer();
     this.navigate('/');
+  },
+
+  _scrollToTop() {
+    window.scrollTo({ top: 0, behavior: 'instant' });
   },
 
   _renderExerciseCard(session, exerciseId) {
@@ -241,10 +248,12 @@ const App = {
       const exerciseIds = Object.keys(session.entries);
       const exerciseJustCompleted = Session.isExerciseComplete(session, exerciseId);
       const isLastExercise = exerciseIds.indexOf(exerciseId) === exerciseIds.length - 1;
-      if (exerciseJustCompleted && !isLastExercise) {
+      const advancingExercise = exerciseJustCompleted && !isLastExercise;
+      if (advancingExercise) {
         Session.goToExercise(session, exerciseIds.indexOf(exerciseId) + 1);
       }
       this.renderSession(document.getElementById('app'));
+      if (advancingExercise) this._scrollToTop();
       if (!isLastSet) this._startRestTimer(exercise.restSec);
     });
 
@@ -254,6 +263,21 @@ const App = {
         this._startExerciseTimer(row, exercise, set.targetDuration);
       });
     }
+
+    // Typing a value into one set fills the same value into the other
+    // not-yet-logged sets of this exercise, since most sets use the same
+    // weight/reps (or duration) — saves re-typing for every set.
+    row.querySelectorAll('[data-field]').forEach((input) => {
+      input.addEventListener('input', () => {
+        const container = row.parentElement;
+        if (!container) return;
+        container.querySelectorAll('.set-row').forEach((sibling) => {
+          if (sibling === row || sibling.classList.contains('done')) return;
+          const match = sibling.querySelector(`[data-field="${input.dataset.field}"]`);
+          if (match) match.value = input.value;
+        });
+      });
+    });
 
     return row;
   },
