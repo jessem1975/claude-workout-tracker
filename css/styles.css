@@ -282,3 +282,52 @@ p { margin: 8px 0; }
 .rest-time { font-size: 1.8rem; font-weight: 800; }
 .rest-actions { display: flex; gap: 10px; }
 .rest-actions .btn { background: rgba(255,255,255,0.15); color: inherit; }
+
+.video-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.video-modal.hidden { display: none; }
+.video-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+}
+.video-modal-card {
+  position: relative;
+  z-index: 1;
+  width: min(92vw, 420px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.video-modal-frame {
+  width: 100%;
+  aspect-ratio: 9 / 16;
+  background: #000;
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.video-modal-frame iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}
+.video-modal-close {
+  align-self: flex-end;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border-trim);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+#video-modal-fallback { color: var(--on-accent-dark); }

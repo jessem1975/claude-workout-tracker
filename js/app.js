@@ -503,7 +503,7 @@ const App = {
         <p class="muted">${range} · rest ${exercise.restSec}s</p>
         ${exercise.caution ? `<p class="caution">⚠ ${exercise.caution}</p>` : ''}
         ${video
-          ? `<a class="btn primary" target="_blank" rel="noopener" href="${video.url}">▶ Watch quick demo${video.channel ? ` (${video.channel})` : ''}</a>`
+          ? `<button class="btn primary full" id="watch-video-btn">▶ Watch quick demo${video.channel ? ` (${video.channel})` : ''}</button>`
           : '<p class="muted">No reference video linked yet.</p>'
         }
       </section>
@@ -512,6 +512,42 @@ const App = {
         ${this._trendHtml(exerciseId)}
       </section>
     `;
+
+    const watchBtn = document.getElementById('watch-video-btn');
+    if (watchBtn) watchBtn.addEventListener('click', () => this._openVideoModal(video.url));
+  },
+
+  // ---------------- VIDEO MODAL ----------------
+  _youtubeEmbedUrl(url) {
+    const match = url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([\w-]{11})/);
+    if (!match) return null;
+    return `https://www.youtube.com/embed/${match[1]}?playsinline=1&autoplay=1&rel=0`;
+  },
+
+  _openVideoModal(url) {
+    const embedUrl = this._youtubeEmbedUrl(url);
+    const modal = document.getElementById('video-modal');
+    const frame = document.getElementById('video-modal-frame');
+    const fallback = document.getElementById('video-modal-fallback');
+    if (!embedUrl) {
+      window.open(url, '_blank', 'noopener');
+      return;
+    }
+    fallback.href = url;
+    frame.innerHTML = `<iframe src="${embedUrl}" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+    modal.classList.remove('hidden');
+  },
+
+  _closeVideoModal() {
+    const modal = document.getElementById('video-modal');
+    const frame = document.getElementById('video-modal-frame');
+    modal.classList.add('hidden');
+    frame.innerHTML = ''; // stop playback by removing the iframe entirely
+  },
+
+  initVideoModal() {
+    document.getElementById('video-modal-close').addEventListener('click', () => this._closeVideoModal());
+    document.querySelector('#video-modal .video-modal-backdrop').addEventListener('click', () => this._closeVideoModal());
   },
 
   // ---------------- SETTINGS ----------------
@@ -592,5 +628,6 @@ const App = {
 
 document.addEventListener('DOMContentLoaded', () => {
   App.initRestBanner();
+  App.initVideoModal();
   App.init();
 });
