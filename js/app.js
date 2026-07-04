@@ -285,6 +285,8 @@ const App = {
     banner.classList.remove('rest-done');
 
     if (this.restTimer) this.restTimer.pause();
+    if (this._restHideTimeout) clearTimeout(this._restHideTimeout);
+
     this.restTimer = new CountdownTimer({
       duration: total,
       onTick: (remaining) => {
@@ -295,6 +297,7 @@ const App = {
         if (Storage.getSettings().vibrationEnabled) AlertFX.vibrate([400, 150, 400]);
         banner.classList.add('rest-done');
         document.getElementById('rest-label').textContent = 'Rest done — go!';
+        this._restHideTimeout = setTimeout(() => this._clearRestTimer(), 2500);
       }
     });
     document.getElementById('rest-label').textContent = 'Resting...';
@@ -304,6 +307,10 @@ const App = {
   _clearRestTimer() {
     if (this.restTimer) this.restTimer.pause();
     this.restTimer = null;
+    if (this._restHideTimeout) {
+      clearTimeout(this._restHideTimeout);
+      this._restHideTimeout = null;
+    }
     const banner = document.getElementById('rest-banner');
     if (banner) banner.classList.add('hidden');
   },
