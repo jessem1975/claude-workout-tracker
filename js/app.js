@@ -390,7 +390,7 @@ const App = {
         <p class="muted">${range} · rest ${exercise.restSec}s</p>
         ${exercise.caution ? `<p class="caution">⚠ ${exercise.caution}</p>` : ''}
         ${video
-          ? `<a class="btn primary" target="_blank" rel="noopener" href="${video.url}">▶ Watch form video (${video.channel})</a>`
+          ? `<a class="btn primary" target="_blank" rel="noopener" href="${video.url}">▶ Watch quick demo${video.channel ? ` (${video.channel})` : ''}</a>`
           : '<p class="muted">No reference video linked yet.</p>'
         }
       </section>
