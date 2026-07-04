@@ -5,6 +5,7 @@
 const App = {
   restTimer: null,
   exerciseTimers: {}, // exerciseId+setIndex -> CountdownTimer, for inline time-based sets
+  _expandedDetails: {}, // exerciseId -> bool, whether its "Details & video" panel is expanded
 
   init() {
     window.addEventListener('hashchange', () => this.render());
@@ -266,18 +267,36 @@ const App = {
     const entry = session.entries[exerciseId];
     const video = VIDEOS[exerciseId];
     const complete = Session.isExerciseComplete(session, exerciseId);
+    const expanded = !!this._expandedDetails[exerciseId];
 
     const card = document.createElement('section');
     card.className = 'card exercise-card' + (complete ? ' complete' : '');
     card.innerHTML = `
       <div class="exercise-head">
         <h2>${exercise.name}</h2>
-        <a href="#/exercise/${exerciseId}" class="link-btn">Details${video ? ' & video' : ''}</a>
+        <button class="link-btn" id="details-toggle" data-exercise="${exerciseId}">
+          Details${video ? ' & video' : ''} ${expanded ? '▴' : '▾'}
+        </button>
       </div>
-      ${exercise.caution ? `<p class="caution">⚠ ${exercise.caution}</p>` : ''}
+      <div class="exercise-details ${expanded ? '' : 'hidden'}" id="exercise-details">
+        ${exercise.caution ? `<p class="caution">⚠ ${exercise.caution}</p>` : ''}
+        ${video ? `<button class="btn primary full" id="details-watch-video-btn">▶ Watch quick demo${video.channel ? ` (${video.channel})` : ''}</button>` : ''}
+        <a href="#/exercise/${exerciseId}" class="link-btn">Full history &rarr;</a>
+      </div>
       <p class="suggestion">${entry.suggestion.note}</p>
       <div class="set-rows" data-exercise="${exerciseId}"></div>
     `;
+
+    card.querySelector('#details-toggle').addEventListener('click', () => {
+      this._expandedDetails[exerciseId] = !this._expandedDetails[exerciseId];
+      const holder = document.getElementById('exercise-card-holder');
+      if (holder) {
+        holder.innerHTML = '';
+        holder.appendChild(this._renderExerciseCard(session, exerciseId));
+      }
+    });
+    const watchBtn = card.querySelector('#details-watch-video-btn');
+    if (watchBtn) watchBtn.addEventListener('click', () => this._openVideoModal(video.url));
 
     const rows = card.querySelector('.set-rows');
     entry.sets.forEach((set, idx) => {
