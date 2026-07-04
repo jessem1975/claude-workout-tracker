@@ -112,6 +112,18 @@ p { margin: 8px 0; }
 .rotation-list li { padding: 4px 0; color: var(--muted); }
 .rotation-list li.current { color: var(--accent); font-weight: 700; }
 
+.exercise-sublist {
+  list-style: disc;
+  padding-left: 22px;
+  margin: 6px 0 8px;
+}
+.exercise-sublist li {
+  color: var(--text);
+  font-weight: 400;
+  font-size: 0.9rem;
+  padding: 2px 0;
+}
+
 .session-header { display: flex; flex-direction: column; align-items: stretch; }
 .session-top-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
 .session-top-row h1 { margin: 0; }
