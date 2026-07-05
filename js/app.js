@@ -204,9 +204,10 @@ const App = {
         </div>
         <p class="exercise-progress">Exercise ${idx + 1} of ${exerciseIds.length}</p>
         <div class="exercise-dots">
-          ${exerciseIds.map((id, i) => `
-            <button class="dot ${i === idx ? 'active' : ''} ${Session.isExerciseComplete(session, id) ? 'done' : ''}" data-jump="${i}">${i + 1}</button>
-          `).join('')}
+          ${exerciseIds.map((id, i) => {
+            const isDone = Session.isExerciseComplete(session, id);
+            return `<button class="dot ${i === idx ? 'active' : ''} ${isDone ? 'done' : ''}" data-jump="${i}">${isDone ? '&check;' : i + 1}</button>`;
+          }).join('')}
         </div>
       </section>
       <div id="exercise-card-holder"></div>
