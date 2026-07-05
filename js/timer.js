@@ -108,15 +108,24 @@ const AlertFX = {
   beep() {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = 880;
-      gain.gain.setValueAtTime(0.3, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
-      osc.connect(gain).connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.4);
+      const playTone = (freq, startTime, duration, peak) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'square'; // brighter/more piercing harmonic content than sine, cuts through music better
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.0001, startTime);
+        gain.gain.exponentialRampToValueAtTime(peak, startTime + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(startTime);
+        osc.stop(startTime + duration + 0.02);
+      };
+      // three loud, bright chimes (like a phone notification) instead of one
+      // quiet blip, so it has a real chance of being heard over music
+      const now = ctx.currentTime;
+      playTone(1046.5, now, 0.16, 0.9);
+      playTone(1046.5, now + 0.22, 0.16, 0.9);
+      playTone(1318.5, now + 0.44, 0.3, 0.9);
     } catch (e) {
       // audio not available; ignore
     }
