@@ -315,15 +315,30 @@ const App = {
     return card;
   },
 
+  _lastSetResult(exerciseId, setIndex) {
+    const history = Storage.getExerciseHistory(exerciseId);
+    if (!history.length) return null;
+    const lastSet = history[history.length - 1].sets[setIndex];
+    if (!lastSet) return null;
+    if (lastSet.duration != null) return `${lastSet.duration}s`;
+    if (lastSet.weight != null && lastSet.reps != null) {
+      return `${lastSet.weight} ${Storage.getSettings().units} &times; ${lastSet.reps}`;
+    }
+    return null;
+  },
+
   _renderSetRow(session, exerciseId, exercise, setIndex) {
     const set = session.entries[exerciseId].sets[setIndex];
     const row = document.createElement('div');
     row.className = 'set-row' + (set.done ? ' done' : '');
     row.dataset.setIndex = String(setIndex);
+    const lastResult = this._lastSetResult(exerciseId, setIndex);
+    const lastResultHtml = lastResult ? `<div class="last-result">Last: ${lastResult}</div>` : '';
 
     if (exercise.type === 'time') {
       const target = set.targetDuration;
       row.innerHTML = `
+        ${lastResultHtml}
         <span class="set-num">${setIndex + 1}</span>
         <span class="target">Target ${target}s</span>
         <span class="timer-display" data-timer-display>${set.duration != null ? set.duration + 's' : target + 's'}</span>
@@ -333,6 +348,7 @@ const App = {
       `;
     } else {
       row.innerHTML = `
+        ${lastResultHtml}
         <span class="set-num">${setIndex + 1}</span>
         <input type="number" inputmode="decimal" class="input weight-input" placeholder="wt" value="${set.weight != null ? set.weight : ''}" data-field="weight">
         <span class="unit">${Storage.getSettings().units}</span>
