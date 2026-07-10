@@ -111,6 +111,15 @@ const Session = {
     Storage.saveMeta({ lastCompletedDayIndex: dayIndex });
   },
 
+  // Skips today's workout entirely: discards any in-progress (unlogged) sets
+  // and advances the rotation to the next day, without recording any
+  // exercise history for today. Different from discard(), which abandons
+  // progress but leaves the rotation pointing at the same day next time.
+  skipToday(dayIndex) {
+    Storage.clearActiveSession();
+    Storage.saveMeta({ lastCompletedDayIndex: dayIndex });
+  },
+
   discard() {
     Storage.clearActiveSession();
   }
