@@ -217,6 +217,12 @@ button.link-btn {
 .set-row .unit { font-size: 0.95rem; color: var(--muted); }
 .set-row .target, .set-row .timer-display { font-size: 1rem; color: var(--muted); min-width: 70px; }
 .set-row button[data-action="log"] { margin-left: auto; }
+.last-result {
+  flex-basis: 100%;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
 
 .hidden { display: none; }
 
