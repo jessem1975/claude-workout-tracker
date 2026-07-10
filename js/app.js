@@ -67,7 +67,8 @@ const App = {
           <div class="day-focus">${day.focus}</div>
         </div>
         ${day.exercises.length
-          ? `<button class="btn primary big" id="start-btn">${active ? 'Resume Workout' : 'Start Workout'}</button>`
+          ? `<button class="btn primary big" id="start-btn">${active ? 'Resume Workout' : 'Start Workout'}</button>
+             <button class="btn subtle full" id="skip-btn">Skip this workout</button>`
           : `<button class="btn primary big" id="rest-btn">Mark Rest Day Done</button>`
         }
       </section>
@@ -113,6 +114,19 @@ const App = {
       restBtn.addEventListener('click', () => {
         Session.completeRestDay(nextIndex);
         this.render();
+      });
+    }
+    const skipBtn = document.getElementById('skip-btn');
+    if (skipBtn) {
+      skipBtn.addEventListener('click', () => {
+        const msg = active
+          ? `Skip ${day.label}? Your in-progress sets for today won't be saved, and the rotation moves on to the next workout.`
+          : `Skip ${day.label} and move on to the next workout in your rotation?`;
+        if (confirm(msg)) {
+          Session.skipToday(nextIndex);
+          this._clearRestTimer();
+          this.render();
+        }
       });
     }
     const backupNowBtn = document.getElementById('backup-now-btn');
@@ -223,7 +237,10 @@ const App = {
           }
         </button>
       </section>
-      ${!isLast ? '<section class="card"><button class="btn subtle full" id="finish-early-btn">Finish workout now</button></section>' : ''}
+      <section class="card">
+        ${!isLast ? '<button class="btn subtle full" id="finish-early-btn">Finish workout now</button>' : ''}
+        <button class="btn subtle full" id="skip-workout-btn">Skip this workout</button>
+      </section>
     `;
 
     document.getElementById('exercise-card-holder').appendChild(this._renderExerciseCard(session, exerciseId));
@@ -251,6 +268,13 @@ const App = {
     if (finishEarlyBtn) finishEarlyBtn.addEventListener('click', () => this._finishWorkout(session));
     const finishBtn = document.getElementById('finish-btn');
     if (finishBtn) finishBtn.addEventListener('click', () => this._finishWorkout(session));
+    document.getElementById('skip-workout-btn').addEventListener('click', () => {
+      if (confirm(`Skip ${day.label}? Any unlogged sets won't be saved, and the rotation moves on to the next workout.`)) {
+        Session.skipToday(session.dayIndex);
+        this._clearRestTimer();
+        this.navigate('/');
+      }
+    });
 
     document.getElementById('discard-btn').addEventListener('click', () => {
       if (confirm('Discard this in-progress workout? Nothing will be saved.')) {
