@@ -1,8 +1,8 @@
-// Weekly rotation: 6 training days + 1 rest day, repeating indefinitely.
-// The app tracks which index in this array was last completed (not the calendar
-// day), so skipping a day just picks up where you left off next time you train.
+// The built-in default plan's days: a 6-day push/pull/legs rotation plus a
+// rest day. This seeds the "Default Plan" entry the first time the app
+// runs; see js/plans.js for the multi-plan layer built on top of this.
 
-const PLAN = [
+const DEFAULT_PLAN_DAYS = [
   {
     id: 'push-a', label: 'Push A', focus: 'Chest / Shoulders / Triceps',
     exercises: ['db-bench-press', 'incline-db-press', 'cable-fly', 'db-lateral-raise', 'landmine-press', 'rope-pushdown', 'cable-face-pull']
@@ -33,4 +33,4 @@ const PLAN = [
   }
 ];
 
-if (typeof module !== 'undefined') module.exports = { PLAN };
+if (typeof module !== 'undefined') module.exports = { DEFAULT_PLAN_DAYS };

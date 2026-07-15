@@ -2,20 +2,36 @@
 // logging, and committing a finished session into history.
 
 const Session = {
-  getNextDayIndex() {
+  // A soft suggestion only (shown as a hint in the day picker) — the day
+  // after whichever one was last completed in the active plan. The user is
+  // always free to pick any day; nothing auto-starts.
+  getSuggestedDayIndex() {
+    const plan = Plans.getActive();
     const meta = Storage.getMeta();
-    return (meta.lastCompletedDayIndex + 1) % PLAN.length;
+    if (meta.lastPlanId !== plan.id || meta.lastCompletedDayIndex == null || meta.lastCompletedDayIndex < 0) {
+      return 0;
+    }
+    return (meta.lastCompletedDayIndex + 1) % plan.days.length;
   },
 
   getActive() {
     return Storage.getActiveSession();
   },
 
-  start(dayIndex) {
-    const day = PLAN[dayIndex];
+  // Resolves the plan day a session belongs to, using the plan it was
+  // started under (not necessarily the currently active plan — the user
+  // may switch plans while a session from a different one is in progress).
+  getDay(session) {
+    const plan = Plans.get(session.planId) || Plans.getActive();
+    return plan.days[session.dayIndex];
+  },
+
+  start(planId, dayIndex) {
+    const plan = Plans.get(planId);
+    const day = plan.days[dayIndex];
     const entries = {};
     day.exercises.forEach((exerciseId) => {
-      const exercise = EXERCISES[exerciseId];
+      const exercise = ExerciseRegistry.get(exerciseId);
       const history = Storage.getExerciseHistory(exerciseId);
       const suggestion = Progression.suggestForExercise(exercise, history);
       const sets = [];
@@ -36,6 +52,7 @@ const Session = {
       entries[exerciseId] = { type: exercise.type, sets, suggestion };
     });
     const session = {
+      planId: plan.id,
       dayIndex,
       dayId: day.id,
       startedAt: new Date().toISOString(),
@@ -96,28 +113,28 @@ const Session = {
         });
       }
     });
-    const day = PLAN[session.dayIndex];
+    const day = Session.getDay(session);
     Storage.appendSessionLog({
       date,
       dayId: day.id,
       label: day.label,
       exerciseCount: loggedExerciseCount
     });
-    Storage.saveMeta({ lastCompletedDayIndex: session.dayIndex });
+    Storage.saveMeta({ lastCompletedDayIndex: session.dayIndex, lastPlanId: session.planId });
     Storage.clearActiveSession();
   },
 
-  completeRestDay(dayIndex) {
-    Storage.saveMeta({ lastCompletedDayIndex: dayIndex });
+  completeRestDay(planId, dayIndex) {
+    Storage.saveMeta({ lastCompletedDayIndex: dayIndex, lastPlanId: planId });
   },
 
   // Skips today's workout entirely: discards any in-progress (unlogged) sets
-  // and advances the rotation to the next day, without recording any
+  // and advances the rotation hint past this day, without recording any
   // exercise history for today. Different from discard(), which abandons
-  // progress but leaves the rotation pointing at the same day next time.
-  skipToday(dayIndex) {
+  // progress but leaves the suggested day unchanged for next time.
+  skipToday(planId, dayIndex) {
     Storage.clearActiveSession();
-    Storage.saveMeta({ lastCompletedDayIndex: dayIndex });
+    Storage.saveMeta({ lastCompletedDayIndex: dayIndex, lastPlanId: planId });
   },
 
   discard() {

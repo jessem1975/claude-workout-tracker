@@ -121,13 +121,16 @@ const Storage = {
   exportAll() {
     return {
       schema: 'workout-tracker-backup',
-      version: 1,
+      version: 2,
       exportedAt: new Date().toISOString(),
       settings: this.getSettings(),
       history: this.getHistory(),
       meta: this.getMeta(),
       sessionLog: this.getSessionLog(),
-      activeSession: this.getActiveSession()
+      activeSession: this.getActiveSession(),
+      plans: Plans.getAll(),
+      activePlanId: Plans.getActiveId(),
+      customExercises: ExerciseRegistry.getCustom()
     };
   },
   importAll(data) {
@@ -138,6 +141,9 @@ const Storage = {
     if (data.history) this._write(STORAGE_KEYS.history, data.history);
     if (data.meta) this._write(STORAGE_KEYS.meta, data.meta);
     if (data.sessionLog) this._write(STORAGE_KEYS.log, data.sessionLog);
+    if (data.customExercises) ExerciseRegistry.saveCustom(data.customExercises);
+    if (data.plans) Plans._writeAll(data.plans);
+    if (data.activePlanId) Plans.setActiveId(data.activePlanId);
     if (data.activeSession) this._write(STORAGE_KEYS.session, data.activeSession);
     else localStorage.removeItem(STORAGE_KEYS.session);
   }

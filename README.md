@@ -30,11 +30,19 @@ worker caches the app shell).
 
 ## How the program works
 
-- **Rotation, not a calendar.** The app tracks which day of the 6-day cycle you
-  last completed, not the date — so if you train 5 days one week and 6 the
-  next, it just picks up on the next day in the sequence.
-- **Cycle:** Push A → Pull A → Legs A → Push B → Pull B → Legs B + Conditioning
-  → Rest → repeat. See `js/plan.js`.
+- **You pick the workout, every time.** Nothing auto-starts. The home screen
+  shows every day in your active plan as a tappable option (with a small
+  "Suggested" hint on whichever one comes next in sequence) — you choose
+  which one to do.
+- **Multiple plans.** The built-in 6-day push/pull/legs rotation (Push A →
+  Pull A → Legs A → Push B → Pull B → Legs B + Conditioning → Rest, see
+  `js/plan.js`) ships as the default plan, but you can import additional
+  plans from an Excel workbook (Settings → Import Plan from Excel) and
+  switch between them. Expected columns: Day, Exercise, Sets, Reps, Rest
+  (sec) — "Reps" accepts a number, a range like `8-12`, or a hold time like
+  `30s` for time-based moves. Exercise names that don't match the built-in
+  catalog become custom exercises automatically (`js/import.js`,
+  `js/exercise-registry.js`, `js/plans.js`).
 - **Injury-aware exercise selection** (`js/exercises.js`): shoulder-friendly
   substitutions for overhead/behind-the-neck pressing (landmine press, neutral-grip
   pulldowns/rows, low-to-high cable flys), direct rotator cuff work (face pulls,
@@ -72,12 +80,16 @@ css/styles.css         Mobile-first styling (dark/light auto)
 manifest.json          PWA manifest
 service-worker.js       Offline caching of the app shell
 icons/                  App icons
-js/exercises.js         Exercise database (sets/reps/rest/cautions)
-js/videos.js            Reference video links per exercise
-js/plan.js              The 6-day + rest rotation
+js/exercises.js         Built-in exercise database (sets/reps/rest/cautions)
+js/exercise-registry.js Merges built-in + user-imported custom exercises
+js/videos.js            Reference video links per built-in exercise
+js/plan.js              The built-in 6-day + rest rotation (seeds the default plan)
+js/plans.js             Multi-plan storage: create/rename/delete/switch active plan
+js/import.js            Excel workbook -> draft plan + custom exercises parser
+js/vendor/xlsx.core.min.js  Vendored SheetJS (lazy-loaded only when importing)
 js/progression.js       Double-progression suggestion engine
 js/timer.js             Countdown timer / stopwatch / sound+vibration helpers
-js/storage.js           localStorage persistence layer
+js/storage.js           localStorage persistence layer + backup/restore
 js/session.js           Active workout session state machine
 js/app.js               Hash router + view rendering
 ```

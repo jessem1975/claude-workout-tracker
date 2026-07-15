@@ -127,9 +127,33 @@ button.link-btn {
 .day-name { font-size: 1.2rem; font-weight: 700; }
 .day-focus { color: var(--muted); font-size: 0.9rem; }
 
-.rotation-list { padding-left: 20px; margin: 0; }
-.rotation-list li { padding: 4px 0; color: var(--muted); }
-.rotation-list li.current { color: var(--accent); font-weight: 700; }
+.day-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0;
+}
+.day-option {
+  position: relative;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border-trim);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.day-option.selected { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.day-option-badge {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  opacity: 0.75;
+  margin-top: 2px;
+}
 
 .exercise-sublist {
   list-style: disc;
@@ -250,6 +274,21 @@ button.link-btn {
   font-size: 0.9rem;
 }
 .session-log .date { color: var(--muted); min-width: 90px; }
+
+.plan-list { list-style: none; padding: 0; margin: 0 0 14px; }
+.plan-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--surface-2);
+  flex-wrap: wrap;
+}
+.plan-row-info { display: flex; flex-direction: column; }
+.plan-row-name { font-weight: 700; }
+.plan-row.active .plan-row-name { color: var(--accent); }
+.plan-row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 
 #exercise-picker {
   width: 100%;
