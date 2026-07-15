@@ -292,9 +292,7 @@ const App = {
         if (typeof XLSX === 'undefined') {
           await this._loadScriptOnce('js/vendor/xlsx.core.min.js');
         }
-        const draft = Importer.parseWorkbook(reader.result);
-        draft.suggestedName = file.name.replace(/\.(xlsx|xls)$/i, '');
-        this._importDraft = draft;
+        this._importDraft = Importer.parseWorkbook(reader.result);
         this.navigate('/import-preview');
       } catch (e) {
         alert("Couldn't read that file: " + e.message);
@@ -305,39 +303,62 @@ const App = {
 
   renderImportPreview(app) {
     const draft = this._importDraft;
-    if (!draft) {
+    if (!draft || !draft.plans || !draft.plans.length) {
       this.navigate('/settings');
       return;
     }
+    const plans = draft.plans;
+    const multi = plans.length > 1;
+
     app.innerHTML = `
       <section class="card">
         <a href="#/settings" class="link-btn">&larr; Cancel</a>
         <h1>Import Preview</h1>
-        <label class="settings-row">
-          <span>Plan name</span>
-          <input type="text" id="import-plan-name" value="${draft.suggestedName}">
-        </label>
-        ${draft.warnings.length ? `<p class="caution">⚠ ${draft.warnings.join('<br>')}</p>` : ''}
+        <p class="muted">${plans.length} plan${multi ? 's' : ''} found${multi ? ' — one per sheet' : ''} in this workbook.</p>
+        ${draft.errors && draft.errors.length ? `<p class="caution">⚠ ${draft.errors.join('<br>')}</p>` : ''}
       </section>
+      ${plans.map((plan, i) => `
+        <section class="card">
+          ${multi ? `
+            <label class="settings-row">
+              <span>Import this plan</span>
+              <input type="checkbox" id="import-plan-selected-${i}" checked>
+            </label>
+          ` : ''}
+          <label class="settings-row">
+            <span>Plan name</span>
+            <input type="text" id="import-plan-name-${i}" value="${plan.suggestedName}">
+          </label>
+          ${plan.warnings.length ? `<p class="caution">⚠ ${plan.warnings.join('<br>')}</p>` : ''}
+          <h2>${plan.days.length} day${plan.days.length === 1 ? '' : 's'} found</h2>
+          <ul class="rotation-list">
+            ${plan.days.map((d) => `<li>${d.label}<ul class="exercise-sublist">${d.exercises.map((id) => {
+              const isNew = plan.newExercises.some((e) => e.id === id);
+              const ex = isNew ? plan.newExercises.find((e) => e.id === id) : ExerciseRegistry.get(id);
+              return `<li>${ex.name}${isNew ? ' <span class="muted">(new)</span>' : ''}</li>`;
+            }).join('')}</ul></li>`).join('')}
+          </ul>
+        </section>
+      `).join('')}
       <section class="card">
-        <h2>${draft.days.length} day${draft.days.length === 1 ? '' : 's'} found</h2>
-        <ul class="rotation-list">
-          ${draft.days.map((d) => `<li>${d.label}<ul class="exercise-sublist">${d.exercises.map((id) => {
-            const isNew = draft.newExercises.some((e) => e.id === id);
-            const ex = isNew ? draft.newExercises.find((e) => e.id === id) : ExerciseRegistry.get(id);
-            return `<li>${ex.name}${isNew ? ' <span class="muted">(new)</span>' : ''}</li>`;
-          }).join('')}</ul></li>`).join('')}
-        </ul>
-      </section>
-      <section class="card">
-        <button class="btn primary big" id="save-plan-btn">Save Plan</button>
+        <button class="btn primary big" id="save-plan-btn">${multi ? 'Save Selected Plans' : 'Save Plan'}</button>
       </section>
     `;
     document.getElementById('save-plan-btn').addEventListener('click', () => {
-      const name = document.getElementById('import-plan-name').value.trim() || draft.suggestedName || 'Imported Plan';
-      draft.newExercises.forEach((ex) => ExerciseRegistry.addCustom(ex));
-      const plan = Plans.create(name, draft.days);
-      Plans.setActiveId(plan.id);
+      let firstCreated = null;
+      plans.forEach((plan, i) => {
+        const checkbox = document.getElementById(`import-plan-selected-${i}`);
+        if (checkbox && !checkbox.checked) return;
+        const name = document.getElementById(`import-plan-name-${i}`).value.trim() || plan.suggestedName || 'Imported Plan';
+        plan.newExercises.forEach((ex) => ExerciseRegistry.addCustom(ex));
+        const created = Plans.create(name, plan.days);
+        if (!firstCreated) firstCreated = created;
+      });
+      if (!firstCreated) {
+        alert('Select at least one plan to import.');
+        return;
+      }
+      Plans.setActiveId(firstCreated.id);
       this._importDraft = null;
       this._selectedDayIndex = null;
       this.navigate('/');
@@ -812,7 +833,7 @@ const App = {
           }).join('')}
         </ul>
         <button class="btn primary full" id="import-plan-btn">Import Plan from Excel</button>
-        <p class="muted">Expects columns: Day, Exercise, Sets, Reps, Rest (sec). "Reps" can be a number, a range like 8-12, or a hold time like 30s.</p>
+        <p class="muted">Works with a training-log layout — rows like "Day 1: Chest &amp; Triceps" starting each day, followed by Exercise / Sets x Reps rows ("4 x 8-10", "3 x 12-15/side", "to failure") — or a flat Day, Exercise, Sets, Reps, Rest (sec) table. Each sheet in the workbook becomes its own plan.</p>
         <input type="file" id="import-plan-input" accept=".xlsx,.xls" class="hidden">
       </section>
       <section class="card">

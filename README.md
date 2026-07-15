@@ -38,11 +38,21 @@ worker caches the app shell).
   Pull A → Legs A → Push B → Pull B → Legs B + Conditioning → Rest, see
   `js/plan.js`) ships as the default plan, but you can import additional
   plans from an Excel workbook (Settings → Import Plan from Excel) and
-  switch between them. Expected columns: Day, Exercise, Sets, Reps, Rest
-  (sec) — "Reps" accepts a number, a range like `8-12`, or a hold time like
-  `30s` for time-based moves. Exercise names that don't match the built-in
-  catalog become custom exercises automatically (`js/import.js`,
-  `js/exercise-registry.js`, `js/plans.js`).
+  switch between them. Each sheet in the workbook becomes its own plan
+  (useful for periodized programs split across tabs, e.g. "Week 1-4" /
+  "Week 5-8"). Two layouts are supported:
+  - **Section-header layout**: a row like `Day 1: Chest & Triceps` starts a
+    new day, followed by `Exercise` / `Sets x Reps` rows (e.g.
+    `4 x 8-10`, `3 x 12-15/side`, `2 x 12 + drop`, or `4 x to failure`)
+    until the next day header or a blank row.
+  - **Flat column layout**: a header row with columns (any order) Day,
+    Exercise, Sets, Reps, Rest (sec), and optionally Focus — "Reps" accepts
+    a number, a range like `8-12`, or a hold time like `30s` for
+    time-based moves.
+
+  Exercise names that don't match the built-in catalog become custom
+  exercises automatically (`js/import.js`, `js/exercise-registry.js`,
+  `js/plans.js`).
 - **Injury-aware exercise selection** (`js/exercises.js`): shoulder-friendly
   substitutions for overhead/behind-the-neck pressing (landmine press, neutral-grip
   pulldowns/rows, low-to-high cable flys), direct rotator cuff work (face pulls,
