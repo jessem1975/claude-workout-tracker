@@ -39,6 +39,7 @@ const App = {
     if (route.name === 'history') return this.renderHistory(app);
     if (route.name === 'exercise') return this.renderExerciseDetail(app, route.param);
     if (route.name === 'settings') return this.renderSettings(app);
+    if (route.name === 'import-preview') return this.renderImportPreview(app);
     return this.renderHome(app);
   },
 
@@ -51,29 +52,119 @@ const App = {
   // ---------------- HOME ----------------
   renderHome(app) {
     const active = Session.getActive();
-    const nextIndex = active ? active.dayIndex : Session.getNextDayIndex();
-    const day = PLAN[nextIndex];
     const log = Storage.getSessionLog();
     const last7 = log.filter((s) => this._withinDays(s.date, 7));
-
     const showBackupBanner = Storage.isBackupDue() && Storage.canPromptForBackup();
+
+    if (active) {
+      const day = Session.getDay(active);
+      app.innerHTML = `
+        <section class="card">
+          <h1>Workout Tracker</h1>
+          <p class="muted">Resume your in-progress workout</p>
+          <div class="day-banner">
+            <div class="day-name">${day.label}</div>
+            <div class="day-focus">${day.focus}</div>
+          </div>
+          <button class="btn primary big" id="start-btn">Resume Workout</button>
+        </section>
+        ${this._backupBannerHtml(showBackupBanner)}
+        ${this._thisWeekHtml(last7)}
+      `;
+      document.getElementById('start-btn').addEventListener('click', () => this.navigate('/session'));
+      this._wireBackupBanner();
+      return;
+    }
+
+    const plans = Plans.getAll();
+    const activePlanId = Plans.getActiveId();
+    const activePlan = Plans.getActive();
+    const suggested = Session.getSuggestedDayIndex();
+    if (this._selectedDayIndex == null || this._selectedDayIndex >= activePlan.days.length) {
+      this._selectedDayIndex = suggested;
+    }
+    const selectedDay = activePlan.days[this._selectedDayIndex];
 
     app.innerHTML = `
       <section class="card">
         <h1>Workout Tracker</h1>
-        <p class="muted">${active ? 'Resume your in-progress workout' : "Today's session"}</p>
-        <div class="day-banner">
-          <div class="day-name">${day.label}</div>
-          <div class="day-focus">${day.focus}</div>
+        ${plans.length > 1 ? `
+          <label class="settings-row">
+            <span>Plan</span>
+            <select id="plan-picker">
+              ${plans.map((p) => `<option value="${p.id}" ${p.id === activePlanId ? 'selected' : ''}>${p.name}</option>`).join('')}
+            </select>
+          </label>
+        ` : ''}
+        <p class="muted">Pick today's workout</p>
+        <div class="day-picker">
+          ${activePlan.days.map((d, i) => `
+            <button class="day-option ${i === this._selectedDayIndex ? 'selected' : ''}" data-day-index="${i}">
+              ${d.label}${i === suggested ? '<span class="day-option-badge">Suggested</span>' : ''}
+            </button>
+          `).join('')}
         </div>
-        ${day.exercises.length
-          ? `<button class="btn primary big" id="start-btn">${active ? 'Resume Workout' : 'Start Workout'}</button>
-             <button class="btn subtle full" id="skip-btn">Skip this workout</button>`
+        <div class="day-banner">
+          <div class="day-name">${selectedDay.label}</div>
+          <div class="day-focus">${selectedDay.focus || ''}</div>
+          ${selectedDay.exercises.length
+            ? `<ul class="exercise-sublist">${selectedDay.exercises.map((id) => `<li>${ExerciseRegistry.get(id).name}</li>`).join('')}</ul>`
+            : '<p class="muted">Rest day — nothing to log.</p>'
+          }
+        </div>
+        ${selectedDay.exercises.length
+          ? `<button class="btn primary big" id="start-btn">Start Workout</button>`
           : `<button class="btn primary big" id="rest-btn">Mark Rest Day Done</button>`
         }
       </section>
 
-      ${showBackupBanner ? `
+      ${this._backupBannerHtml(showBackupBanner)}
+      ${this._thisWeekHtml(last7)}
+    `;
+
+    document.querySelectorAll('.day-option').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        this._selectedDayIndex = parseInt(btn.dataset.dayIndex, 10);
+        this.render();
+      });
+    });
+    const planPicker = document.getElementById('plan-picker');
+    if (planPicker) {
+      planPicker.addEventListener('change', () => {
+        Plans.setActiveId(planPicker.value);
+        this._selectedDayIndex = null;
+        this.render();
+      });
+    }
+    const startBtn = document.getElementById('start-btn');
+    if (startBtn) {
+      startBtn.addEventListener('click', () => {
+        Session.start(activePlanId, this._selectedDayIndex);
+        this.navigate('/session');
+      });
+    }
+    const restBtn = document.getElementById('rest-btn');
+    if (restBtn) {
+      restBtn.addEventListener('click', () => {
+        Session.completeRestDay(activePlanId, this._selectedDayIndex);
+        this.render();
+      });
+    }
+    this._wireBackupBanner();
+  },
+
+  _thisWeekHtml(last7) {
+    return `
+      <section class="card">
+        <h2>This week</h2>
+        <p class="muted">${last7.length} session${last7.length === 1 ? '' : 's'} logged in the last 7 days</p>
+      </section>
+    `;
+  },
+
+  _backupBannerHtml(show) {
+    if (!show) return '';
+    return `
       <section class="card backup-banner">
         <h2>Weekly backup</h2>
         <p class="muted">Save your workout history somewhere safe (like iCloud Drive) in case you ever delete the app.</p>
@@ -81,54 +172,10 @@ const App = {
           <button class="btn subtle" id="backup-later-btn">Not now</button>
           <button class="btn primary" id="backup-now-btn">Back Up Now</button>
         </div>
-      </section>` : ''}
+      </section>`;
+  },
 
-      <section class="card">
-        <h2>This week</h2>
-        <p class="muted">${last7.length} session${last7.length === 1 ? '' : 's'} logged in the last 7 days</p>
-      </section>
-
-      <section class="card">
-        <h2>Upcoming rotation</h2>
-        <ol class="rotation-list">
-          ${PLAN.map((d, i) => {
-            const isCurrent = i === nextIndex;
-            const sublist = isCurrent && d.exercises.length
-              ? `<ul class="exercise-sublist">${d.exercises.map((id) => `<li>${EXERCISES[id].name}</li>`).join('')}</ul>`
-              : '';
-            return `<li class="${isCurrent ? 'current' : ''}">${d.label}${sublist}</li>`;
-          }).join('')}
-        </ol>
-      </section>
-    `;
-
-    const startBtn = document.getElementById('start-btn');
-    if (startBtn) {
-      startBtn.addEventListener('click', () => {
-        if (!active) Session.start(nextIndex);
-        this.navigate('/session');
-      });
-    }
-    const restBtn = document.getElementById('rest-btn');
-    if (restBtn) {
-      restBtn.addEventListener('click', () => {
-        Session.completeRestDay(nextIndex);
-        this.render();
-      });
-    }
-    const skipBtn = document.getElementById('skip-btn');
-    if (skipBtn) {
-      skipBtn.addEventListener('click', () => {
-        const msg = active
-          ? `Skip ${day.label}? Your in-progress sets for today won't be saved, and the rotation moves on to the next workout.`
-          : `Skip ${day.label} and move on to the next workout in your rotation?`;
-        if (confirm(msg)) {
-          Session.skipToday(nextIndex);
-          this._clearRestTimer();
-          this.render();
-        }
-      });
-    }
+  _wireBackupBanner() {
     const backupNowBtn = document.getElementById('backup-now-btn');
     if (backupNowBtn) {
       backupNowBtn.addEventListener('click', () => this._runBackup().then(() => this.render()));
@@ -196,6 +243,77 @@ const App = {
     reader.readAsText(file);
   },
 
+  // ---------------- PLAN IMPORT (Excel) ----------------
+  _loadScriptOnce(src) {
+    if (document.querySelector(`script[src="${src}"]`)) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = src;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error(`Failed to load ${src}`));
+      document.head.appendChild(script);
+    });
+  },
+
+  _importPlanFile(file) {
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        if (typeof XLSX === 'undefined') {
+          await this._loadScriptOnce('js/vendor/xlsx.core.min.js');
+        }
+        const draft = Importer.parseWorkbook(reader.result);
+        draft.suggestedName = file.name.replace(/\.(xlsx|xls)$/i, '');
+        this._importDraft = draft;
+        this.navigate('/import-preview');
+      } catch (e) {
+        alert("Couldn't read that file: " + e.message);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  },
+
+  renderImportPreview(app) {
+    const draft = this._importDraft;
+    if (!draft) {
+      this.navigate('/settings');
+      return;
+    }
+    app.innerHTML = `
+      <section class="card">
+        <a href="#/settings" class="link-btn">&larr; Cancel</a>
+        <h1>Import Preview</h1>
+        <label class="settings-row">
+          <span>Plan name</span>
+          <input type="text" id="import-plan-name" value="${draft.suggestedName}">
+        </label>
+        ${draft.warnings.length ? `<p class="caution">⚠ ${draft.warnings.join('<br>')}</p>` : ''}
+      </section>
+      <section class="card">
+        <h2>${draft.days.length} day${draft.days.length === 1 ? '' : 's'} found</h2>
+        <ul class="rotation-list">
+          ${draft.days.map((d) => `<li>${d.label}<ul class="exercise-sublist">${d.exercises.map((id) => {
+            const isNew = draft.newExercises.some((e) => e.id === id);
+            const ex = isNew ? draft.newExercises.find((e) => e.id === id) : ExerciseRegistry.get(id);
+            return `<li>${ex.name}${isNew ? ' <span class="muted">(new)</span>' : ''}</li>`;
+          }).join('')}</ul></li>`).join('')}
+        </ul>
+      </section>
+      <section class="card">
+        <button class="btn primary big" id="save-plan-btn">Save Plan</button>
+      </section>
+    `;
+    document.getElementById('save-plan-btn').addEventListener('click', () => {
+      const name = document.getElementById('import-plan-name').value.trim() || draft.suggestedName || 'Imported Plan';
+      draft.newExercises.forEach((ex) => ExerciseRegistry.addCustom(ex));
+      const plan = Plans.create(name, draft.days);
+      Plans.setActiveId(plan.id);
+      this._importDraft = null;
+      this._selectedDayIndex = null;
+      this.navigate('/');
+    });
+  },
+
   // ---------------- SESSION (one exercise at a time) ----------------
   renderSession(app) {
     const session = Session.getActive();
@@ -203,7 +321,7 @@ const App = {
       this.navigate('/');
       return;
     }
-    const day = PLAN[session.dayIndex];
+    const day = Session.getDay(session);
     const exerciseIds = Object.keys(session.entries);
     const idx = Math.max(0, Math.min(session.currentExerciseIndex || 0, exerciseIds.length - 1));
     const exerciseId = exerciseIds[idx];
@@ -228,12 +346,12 @@ const App = {
       <section class="card nav-row">
         <button class="btn huge nav-btn" id="prev-btn" ${isFirst ? 'disabled' : ''}>
           <span class="nav-btn-arrow">&larr; Prev</span>
-          ${!isFirst ? `<span class="nav-btn-name">${EXERCISES[exerciseIds[idx - 1]].name}</span>` : ''}
+          ${!isFirst ? `<span class="nav-btn-name">${ExerciseRegistry.get(exerciseIds[idx - 1]).name}</span>` : ''}
         </button>
         <button class="btn primary huge nav-btn" id="${isLast ? 'finish-btn' : 'next-btn'}">
           ${isLast
             ? '<span class="nav-btn-arrow">Finish Workout</span>'
-            : `<span class="nav-btn-arrow">Next &rarr;</span><span class="nav-btn-name">${EXERCISES[exerciseIds[idx + 1]].name}</span>`
+            : `<span class="nav-btn-arrow">Next &rarr;</span><span class="nav-btn-name">${ExerciseRegistry.get(exerciseIds[idx + 1]).name}</span>`
           }
         </button>
       </section>
@@ -269,8 +387,8 @@ const App = {
     const finishBtn = document.getElementById('finish-btn');
     if (finishBtn) finishBtn.addEventListener('click', () => this._finishWorkout(session));
     document.getElementById('skip-workout-btn').addEventListener('click', () => {
-      if (confirm(`Skip ${day.label}? Any unlogged sets won't be saved, and the rotation moves on to the next workout.`)) {
-        Session.skipToday(session.dayIndex);
+      if (confirm(`Skip ${day.label}? Any unlogged sets won't be saved.`)) {
+        Session.skipToday(session.planId, session.dayIndex);
         this._clearRestTimer();
         this.navigate('/');
       }
@@ -296,7 +414,7 @@ const App = {
   },
 
   _renderExerciseCard(session, exerciseId) {
-    const exercise = EXERCISES[exerciseId];
+    const exercise = ExerciseRegistry.get(exerciseId);
     const entry = session.entries[exerciseId];
     const video = VIDEOS[exerciseId];
     const complete = Session.isExerciseComplete(session, exerciseId);
@@ -526,7 +644,7 @@ const App = {
       <section class="card">
         <h2>Exercise progress</h2>
         <select id="exercise-picker">
-          ${Object.values(EXERCISES).map((e) => `<option value="${e.id}">${e.name}</option>`).join('')}
+          ${Object.values(ExerciseRegistry.all()).map((e) => `<option value="${e.id}">${e.name}</option>`).join('')}
         </select>
         <div id="exercise-trend"></div>
       </section>
@@ -540,7 +658,7 @@ const App = {
   },
 
   _trendHtml(exerciseId) {
-    const exercise = EXERCISES[exerciseId];
+    const exercise = ExerciseRegistry.get(exerciseId);
     const history = Storage.getExerciseHistory(exerciseId);
     if (history.length === 0) return '<p class="muted">No history yet for this exercise.</p>';
     const rows = history.slice().reverse().map((h) => {
@@ -554,7 +672,7 @@ const App = {
 
   // ---------------- EXERCISE DETAIL ----------------
   renderExerciseDetail(app, exerciseId) {
-    const exercise = EXERCISES[exerciseId];
+    const exercise = ExerciseRegistry.get(exerciseId);
     if (!exercise) {
       this.navigate('/');
       return;
@@ -645,6 +763,29 @@ const App = {
         </label>
       </section>
       <section class="card">
+        <h2>Workout Plans</h2>
+        <ul class="plan-list">
+          ${Plans.getAll().map((p) => {
+            const isActive = p.id === Plans.getActiveId();
+            return `
+              <li class="plan-row ${isActive ? 'active' : ''}">
+                <div class="plan-row-info">
+                  <span class="plan-row-name">${p.name}</span>
+                  <span class="muted">${p.days.length} day${p.days.length === 1 ? '' : 's'}${isActive ? ' · Active' : ''}</span>
+                </div>
+                <div class="plan-row-actions">
+                  ${isActive ? '' : `<button class="btn small" data-plan-action="activate" data-plan-id="${p.id}">Use</button>`}
+                  <button class="btn small" data-plan-action="rename" data-plan-id="${p.id}">Rename</button>
+                  ${p.builtin ? '' : `<button class="btn small subtle" data-plan-action="delete" data-plan-id="${p.id}">Delete</button>`}
+                </div>
+              </li>`;
+          }).join('')}
+        </ul>
+        <button class="btn primary full" id="import-plan-btn">Import Plan from Excel</button>
+        <p class="muted">Expects columns: Day, Exercise, Sets, Reps, Rest (sec). "Reps" can be a number, a range like 8-12, or a hold time like 30s.</p>
+        <input type="file" id="import-plan-input" accept=".xlsx,.xls" class="hidden">
+      </section>
+      <section class="card">
         <h2>Backup</h2>
         <p class="muted">${this._lastBackupText()}</p>
         <button class="btn primary full" id="backup-settings-btn">Back Up Now</button>
@@ -667,6 +808,37 @@ const App = {
     ['units', 'sound', 'vibration', 'extra-rest'].forEach((id) => {
       document.getElementById(id).addEventListener('change', save);
     });
+    document.querySelectorAll('[data-plan-action]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.planId;
+        const action = btn.dataset.planAction;
+        if (action === 'activate') {
+          Plans.setActiveId(id);
+          this._selectedDayIndex = null;
+          this.render();
+        } else if (action === 'rename') {
+          const plan = Plans.get(id);
+          const name = prompt('Plan name:', plan.name);
+          if (name && name.trim()) {
+            Plans.rename(id, name.trim());
+            this.render();
+          }
+        } else if (action === 'delete') {
+          const plan = Plans.get(id);
+          if (confirm(`Delete "${plan.name}"? This can't be undone (your logged exercise history is kept).`)) {
+            if (!Plans.remove(id)) alert("Can't delete your only plan.");
+            this._selectedDayIndex = null;
+            this.render();
+          }
+        }
+      });
+    });
+    const importPlanBtn = document.getElementById('import-plan-btn');
+    const importPlanInput = document.getElementById('import-plan-input');
+    importPlanBtn.addEventListener('click', () => importPlanInput.click());
+    importPlanInput.addEventListener('change', () => {
+      if (importPlanInput.files[0]) this._importPlanFile(importPlanInput.files[0]);
+    });
     document.getElementById('backup-settings-btn').addEventListener('click', () => {
       this._runBackup().then(() => this.render());
     });
@@ -676,8 +848,12 @@ const App = {
       if (fileInput.files[0]) this._importBackupFile(fileInput.files[0]);
     });
     document.getElementById('reset-data').addEventListener('click', () => {
-      if (confirm('This clears all logged workouts and settings on this device. Continue?')) {
+      if (confirm('This clears all logged workouts, custom plans, and settings on this device. Continue?')) {
         Object.values(STORAGE_KEYS).forEach((key) => localStorage.removeItem(key));
+        localStorage.removeItem(CUSTOM_EXERCISES_KEY);
+        localStorage.removeItem(PLANS_KEY);
+        localStorage.removeItem(ACTIVE_PLAN_KEY);
+        this._selectedDayIndex = null;
         this.navigate('/');
         this.render();
       }
