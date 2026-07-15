@@ -52,8 +52,6 @@ const App = {
   // ---------------- HOME ----------------
   renderHome(app) {
     const active = Session.getActive();
-    const log = Storage.getSessionLog();
-    const last7 = log.filter((s) => this._withinDays(s.date, 7));
     const showBackupBanner = Storage.isBackupDue() && Storage.canPromptForBackup();
 
     if (active) {
@@ -69,7 +67,7 @@ const App = {
           <button class="btn primary big" id="start-btn">Resume Workout</button>
         </section>
         ${this._backupBannerHtml(showBackupBanner)}
-        ${this._thisWeekHtml(last7)}
+        ${this._yesterdayWorkoutHtml()}
       `;
       document.getElementById('start-btn').addEventListener('click', () => this.navigate('/session'));
       this._wireBackupBanner();
@@ -88,14 +86,19 @@ const App = {
     app.innerHTML = `
       <section class="card">
         <h1>Workout Tracker</h1>
-        ${plans.length > 1 ? `
-          <label class="settings-row">
-            <span>Plan</span>
-            <select id="plan-picker">
-              ${plans.map((p) => `<option value="${p.id}" ${p.id === activePlanId ? 'selected' : ''}>${p.name}</option>`).join('')}
-            </select>
-          </label>
-        ` : ''}
+        <div class="plan-select">
+          <button class="plan-select-btn" id="plan-select-toggle">
+            <span>Plan: ${activePlan.name}</span>
+            <span class="plan-select-caret">${this._planPickerOpen ? '▴' : '▾'}</span>
+          </button>
+          ${this._planPickerOpen ? `
+            <div class="plan-select-list">
+              ${plans.map((p) => `
+                <button class="plan-select-option ${p.id === activePlanId ? 'selected' : ''}" data-plan-id="${p.id}">${p.name}</button>
+              `).join('')}
+            </div>
+          ` : ''}
+        </div>
         <p class="muted">Pick today's workout</p>
         <div class="day-picker">
           ${activePlan.days.map((d, i) => `
@@ -119,7 +122,7 @@ const App = {
       </section>
 
       ${this._backupBannerHtml(showBackupBanner)}
-      ${this._thisWeekHtml(last7)}
+      ${this._yesterdayWorkoutHtml()}
     `;
 
     document.querySelectorAll('.day-option').forEach((btn) => {
@@ -128,14 +131,21 @@ const App = {
         this.render();
       });
     });
-    const planPicker = document.getElementById('plan-picker');
-    if (planPicker) {
-      planPicker.addEventListener('change', () => {
-        Plans.setActiveId(planPicker.value);
-        this._selectedDayIndex = null;
+    const planToggle = document.getElementById('plan-select-toggle');
+    if (planToggle) {
+      planToggle.addEventListener('click', () => {
+        this._planPickerOpen = !this._planPickerOpen;
         this.render();
       });
     }
+    document.querySelectorAll('.plan-select-option').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        Plans.setActiveId(btn.dataset.planId);
+        this._selectedDayIndex = null;
+        this._planPickerOpen = false;
+        this.render();
+      });
+    });
     const startBtn = document.getElementById('start-btn');
     if (startBtn) {
       startBtn.addEventListener('click', () => {
@@ -153,11 +163,37 @@ const App = {
     this._wireBackupBanner();
   },
 
-  _thisWeekHtml(last7) {
+  _yesterdayWorkoutHtml() {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yStr = yesterday.toISOString().slice(0, 10);
+    const log = Storage.getSessionLog();
+    const entry = log.slice().reverse().find((s) => s.date === yStr);
+
+    if (!entry) {
+      return `
+        <section class="card">
+          <h2>Yesterday's workout</h2>
+          <p class="muted">No workout logged yesterday.</p>
+        </section>
+      `;
+    }
+
+    const history = Storage.getHistory();
+    const exerciseNames = Object.keys(history)
+      .filter((id) => history[id].some((e) => e.date === yStr))
+      .map((id) => ExerciseRegistry.get(id))
+      .filter(Boolean)
+      .map((ex) => ex.name);
+
     return `
       <section class="card">
-        <h2>This week</h2>
-        <p class="muted">${last7.length} session${last7.length === 1 ? '' : 's'} logged in the last 7 days</p>
+        <h2>Yesterday's workout</h2>
+        <div class="day-banner">
+          <div class="day-name">${entry.label}</div>
+          <div class="day-focus">${entry.exerciseCount} exercise${entry.exerciseCount === 1 ? '' : 's'} logged</div>
+        </div>
+        ${exerciseNames.length ? `<ul class="exercise-sublist">${exerciseNames.map((n) => `<li>${n}</li>`).join('')}</ul>` : ''}
       </section>
     `;
   },
@@ -187,12 +223,6 @@ const App = {
         this.render();
       });
     }
-  },
-
-  _withinDays(dateStr, days) {
-    const d = new Date(dateStr);
-    const now = new Date();
-    return (now - d) / 86400000 <= days;
   },
 
   // ---------------- BACKUP / RESTORE ----------------
@@ -815,6 +845,7 @@ const App = {
         if (action === 'activate') {
           Plans.setActiveId(id);
           this._selectedDayIndex = null;
+          this._planPickerOpen = false;
           this.render();
         } else if (action === 'rename') {
           const plan = Plans.get(id);
@@ -854,6 +885,7 @@ const App = {
         localStorage.removeItem(PLANS_KEY);
         localStorage.removeItem(ACTIVE_PLAN_KEY);
         this._selectedDayIndex = null;
+        this._planPickerOpen = false;
         this.navigate('/');
         this.render();
       }
