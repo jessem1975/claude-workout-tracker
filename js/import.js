@@ -1,17 +1,47 @@
-// Parses an uploaded Excel workbook into a draft plan (days + exercises)
-// using the vendored SheetJS library. Expected columns (case-insensitive,
-// any order): Day, Exercise, Sets, Reps, Rest (sec), and optionally Focus.
-// "Reps" accepts a single number ("10"), a range ("8-12"), or a hold time
-// ("30s") for time-based moves like planks or isometrics.
+// Parses an uploaded Excel workbook into one or more draft plans (days +
+// exercises) using the vendored SheetJS library. Each sheet in the workbook
+// becomes its own draft plan (handy for periodized programs split across
+// tabs, e.g. "Week 1-4" / "Week 5-8"). Two sheet layouts are supported:
+//
+// 1. Section-header layout (e.g. exported from a training-log template):
+//    a row whose first cell reads "Day 1: Chest & Triceps" starts a new
+//    day; the following rows are "Exercise" / "Sets x Reps" pairs (reps
+//    like "8-10", "8–12/side", "12 + drop", or "to failure") until the
+//    next Day header or a blank row.
+// 2. Flat column layout: a header row with columns (case-insensitive, any
+//    order) Day, Exercise, Sets, Reps, Rest (sec), and optionally Focus.
+//    "Reps" accepts a single number ("10"), a range ("8-12"), or a hold
+//    time ("30s") for time-based moves like planks or isometrics.
 
 const Importer = {
   parseWorkbook(arrayBuffer) {
     const wb = XLSX.read(arrayBuffer, { type: 'array' });
-    const sheetName = wb.SheetNames[0];
-    if (!sheetName) throw new Error('The workbook has no sheets.');
-    const ws = wb.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-    return this._parseRows(rows);
+    if (!wb.SheetNames.length) throw new Error('The workbook has no sheets.');
+
+    const plans = [];
+    const errors = [];
+    wb.SheetNames.forEach((sheetName) => {
+      const ws = wb.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      if (!rows.length || rows.every((row) => row.every((c) => c === '' || c == null))) return;
+      try {
+        const draft = this._parseSheet(rows);
+        draft.suggestedName = sheetName;
+        plans.push(draft);
+      } catch (e) {
+        errors.push(`Sheet "${sheetName}": ${e.message}`);
+      }
+    });
+
+    if (!plans.length) {
+      throw new Error(errors.length ? errors.join(' ') : 'No usable sheets found in this workbook.');
+    }
+    return { plans, errors };
+  },
+
+  _parseSheet(rows) {
+    const hasSectionDays = rows.some((row) => /^day\s+\d+\s*:/i.test(String(row[0] || '').trim()));
+    return hasSectionDays ? this._parseSectionRows(rows) : this._parseColumnRows(rows);
   },
 
   _findHeaderIndex(headerRow, candidates) {
@@ -45,6 +75,42 @@ const Importer = {
     return { type: 'weight', repRange: [8, 12] };
   },
 
+  // Parses a combined "Sets x Reps" cell like "4 x 8-10", "3 x 12-15/side",
+  // "2 x 12 + drop", or "4 x to failure".
+  _parseSetsReps(raw) {
+    const normalized = String(raw).trim().replace(/[–—]/g, '-');
+    const m = normalized.match(/^(\d+)\s*x\s*(.+)$/i);
+    let sets = 3;
+    let repsPart = normalized;
+    if (m) {
+      sets = parseInt(m[1], 10) || 3;
+      repsPart = m[2].trim();
+    }
+
+    let note = null;
+    if (/\/\s*side/i.test(repsPart)) {
+      repsPart = repsPart.replace(/\/\s*side/i, '').trim();
+      note = 'Per side';
+    }
+    if (/\+\s*drop/i.test(repsPart)) {
+      repsPart = repsPart.replace(/\+\s*drop/i, '').trim();
+      note = note ? `${note}; drop set` : 'Drop set';
+    }
+
+    if (/failure/i.test(repsPart)) {
+      return { sets, type: 'weight', repRange: [8, 15], note: note ? `${note}; to failure` : 'To failure' };
+    }
+    const rangeMatch = repsPart.match(/^(\d+)\s*-\s*(\d+)$/);
+    if (rangeMatch) {
+      return { sets, type: 'weight', repRange: [parseInt(rangeMatch[1], 10), parseInt(rangeMatch[2], 10)], note };
+    }
+    const single = parseInt(repsPart, 10);
+    if (!isNaN(single)) {
+      return { sets, type: 'weight', repRange: [Math.max(1, single - 2), single + 2], note };
+    }
+    return { sets, type: 'weight', repRange: [8, 12], note };
+  },
+
   _resolveExerciseId(name, spec, newExercises) {
     const slug = this._slug(name);
     if (ExerciseRegistry.get(slug)) return slug;
@@ -57,7 +123,7 @@ const Importer = {
       type: spec.type,
       sets: spec.sets,
       restSec: spec.restSec,
-      caution: null
+      caution: spec.note || null
     };
     if (spec.type === 'time') {
       exercise.timeRange = spec.timeRange;
@@ -70,7 +136,45 @@ const Importer = {
     return slug;
   },
 
-  _parseRows(rows) {
+  _parseSectionRows(rows) {
+    const dayHeaderRe = /^day\s+(\d+)\s*:\s*(.*)$/i;
+    const days = [];
+    const newExercises = [];
+    const warnings = [];
+    let currentDay = null;
+
+    for (let r = 0; r < rows.length; r++) {
+      const row = rows[r];
+      const cell0 = String(row[0] || '').trim();
+      if (!cell0) continue;
+
+      const dayMatch = cell0.match(dayHeaderRe);
+      if (dayMatch) {
+        currentDay = {
+          id: this._slug(`day-${dayMatch[1]}-${dayMatch[2]}`),
+          label: cell0,
+          focus: dayMatch[2].trim(),
+          exercises: []
+        };
+        days.push(currentDay);
+        continue;
+      }
+      if (cell0.toLowerCase() === 'exercise') continue; // sub-table header row
+      if (!currentDay) continue; // stray row before any "Day N:" header
+
+      const exerciseName = cell0;
+      const setsRepsRaw = String(row[1] || '').trim();
+      const spec = this._parseSetsReps(setsRepsRaw);
+      spec.restSec = 60;
+      const exerciseId = this._resolveExerciseId(exerciseName, spec, newExercises);
+      if (!currentDay.exercises.includes(exerciseId)) currentDay.exercises.push(exerciseId);
+    }
+
+    if (!days.length) throw new Error('No "Day N: ..." sections found.');
+    return { days, newExercises, warnings };
+  },
+
+  _parseColumnRows(rows) {
     if (!rows.length) throw new Error('The sheet appears to be empty.');
     const header = rows[0];
     const col = {
