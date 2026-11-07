@@ -45,7 +45,8 @@ html, body {
 }
 
 body {
-  padding-bottom: 88px; /* leave room for bottom nav */
+  /* leave room for the bottom dock (nav + home-bar area) */
+  padding-bottom: calc(88px + env(safe-area-inset-bottom));
   min-height: 100vh;
 }
 
@@ -335,9 +336,19 @@ button.link-btn {
 .trend-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
 .trend-table th, .trend-table td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--surface-2); }
 
-.bottom-nav {
+/* Rest banner and nav share one fixed container, so iOS can't separate them
+   or leave the banner stranded over the page after the app is backgrounded. */
+.bottom-dock {
   position: fixed;
   bottom: 0; left: 0; right: 0;
+  z-index: 30;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
+/* while resting, add room so the last sets can scroll clear of the banner */
+body.resting { padding-bottom: calc(180px + env(safe-area-inset-bottom)); }
+
+.bottom-nav {
   display: flex;
   background: var(--surface);
   border-top: 1px solid var(--surface-2);
@@ -356,10 +367,7 @@ button.link-btn {
 .bottom-nav a.active { color: var(--accent); }
 
 .rest-banner {
-  position: fixed;
-  left: 0; right: 0;
-  bottom: 72px;
-  margin: 0 12px;
+  margin: 0 12px 8px;
   background: var(--accent-dark);
   color: var(--on-accent-dark);
   border-radius: 12px;
@@ -368,7 +376,6 @@ button.link-btn {
   justify-content: space-between;
   align-items: center;
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  z-index: 30;
   transition: opacity 0.2s;
 }
 .rest-banner.hidden { display: none; }

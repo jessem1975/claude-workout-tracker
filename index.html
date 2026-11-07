@@ -13,17 +13,6 @@
 <body>
   <main id="app"></main>
 
-  <div id="rest-banner" class="rest-banner hidden">
-    <div class="rest-info">
-      <span id="rest-label">Resting...</span>
-      <span id="rest-time" class="rest-time">0:00</span>
-    </div>
-    <div class="rest-actions">
-      <button id="rest-add" class="btn small">+15s</button>
-      <button id="rest-skip" class="btn small">Skip</button>
-    </div>
-  </div>
-
   <div id="video-modal" class="video-modal hidden">
     <div class="video-modal-backdrop"></div>
     <div class="video-modal-card">
@@ -33,12 +22,24 @@
     </div>
   </div>
 
-  <nav class="bottom-nav">
-    <a href="#/" data-route="home">Home</a>
-    <a href="#/session" data-route="session">Workout</a>
-    <a href="#/history" data-route="history">History</a>
-    <a href="#/settings" data-route="settings">Settings</a>
-  </nav>
+  <div id="bottom-dock" class="bottom-dock">
+    <div id="rest-banner" class="rest-banner hidden">
+      <div class="rest-info">
+        <span id="rest-label">Resting...</span>
+        <span id="rest-time" class="rest-time">0:00</span>
+      </div>
+      <div class="rest-actions">
+        <button id="rest-add" class="btn small">+15s</button>
+        <button id="rest-skip" class="btn small">Skip</button>
+      </div>
+    </div>
+    <nav class="bottom-nav">
+      <a href="#/" data-route="home">Home</a>
+      <a href="#/session" data-route="session">Workout</a>
+      <a href="#/history" data-route="history">History</a>
+      <a href="#/settings" data-route="settings">Settings</a>
+    </nav>
+  </div>
 
   <script src="js/storage.js"></script>
   <script src="js/exercises.js"></script>
