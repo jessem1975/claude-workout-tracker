@@ -633,6 +633,7 @@ const App = {
     const banner = document.getElementById('rest-banner');
     banner.classList.remove('hidden');
     banner.classList.remove('rest-done');
+    document.body.classList.add('resting');
 
     if (this.restTimer) this.restTimer.pause();
     if (this._restHideTimeout) clearTimeout(this._restHideTimeout);
@@ -663,6 +664,7 @@ const App = {
     }
     const banner = document.getElementById('rest-banner');
     if (banner) banner.classList.add('hidden');
+    document.body.classList.remove('resting');
   },
 
   _fmtTime(sec) {
@@ -679,6 +681,23 @@ const App = {
     document.getElementById('rest-add').addEventListener('click', () => {
       if (this.restTimer) this.restTimer.addSeconds(15);
     });
+
+    // Coming back from another app: catch the countdown up right away (the
+    // interval is frozen while backgrounded) and make iOS re-lay-out the dock,
+    // which otherwise can come back stuck in the wrong spot over the page.
+    const resync = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (this.restTimer && this.restTimer.running) this.restTimer._tick();
+      const dock = document.getElementById('bottom-dock');
+      if (dock) {
+        dock.style.display = 'none';
+        void dock.offsetHeight;
+        dock.style.display = '';
+      }
+    };
+    document.addEventListener('visibilitychange', resync);
+    window.addEventListener('pageshow', resync);
+    window.addEventListener('focus', resync);
   },
 
   // ---------------- HISTORY ----------------
