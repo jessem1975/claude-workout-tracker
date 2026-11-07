@@ -44,6 +44,7 @@ const VIDEOS = {
   'kneeling-cable-crunch': { title: 'The Kneeling Cable Crunch Technique', url: 'https://www.youtube.com/shorts/Nbgzz8k_m8A', channel: null },
   'low-incline-db-press': { title: 'Low Incline Dumbbell Press', url: 'https://www.youtube.com/shorts/2xpk6VOFj6M', channel: null },
   'one-arm-cable-lat-pulldown': { title: 'Lat Pulldown - Single Arm', url: 'https://www.youtube.com/shorts/l3Ml4g83zIU', channel: null },
+  'incline-chest-supported-db-row': { title: 'The PERFECT Chest-Supported Dumbbell Rows', url: 'https://www.youtube.com/shorts/2ByilQ4NaAs', channel: null },
   'seal-row-db-or-bar': { title: 'Dumbbell Seal Row', url: 'https://www.youtube.com/shorts/E76tuPVJ1X4', channel: null },
   'pec-deck-fly': { title: 'The PERFECT Pec Dec Fly', url: 'https://www.youtube.com/shorts/a9vQ_hwIksU', channel: null },
   'seated-db-lateral-raise': { title: 'Seated Dumbbell Lateral Raise', url: 'https://www.youtube.com/shorts/cfgNl-PweBg', channel: null },
