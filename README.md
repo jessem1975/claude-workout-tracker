@@ -6,6 +6,9 @@ issue and a knee (patellar tendon) issue. Runs entirely in the browser — no
 account, no server, no internet required after the first load. All data stays
 on your phone (localStorage).
 
+> **Also in this repo:** [`volleyball/`](volleyball/README.md) — a separate
+> volleyball video stat-tagging app (served at `/volleyball/`).
+
 ## Running it
 
 Any static file server works. From this folder:
