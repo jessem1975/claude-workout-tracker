@@ -4,7 +4,7 @@
 const Store = (() => {
   const KEY = 'vbstats:v1';
   const SCHEMA_VERSION = 1;
-  const DEFAULT_PREFS = { autoPause: true, preroll: 4, postroll: 3 };
+  const DEFAULT_PREFS = { autoPause: true, preroll: 4, postroll: 3, skipDead: false, serverUrl: '', serverToken: '' };
   let db;
 
   function load() {

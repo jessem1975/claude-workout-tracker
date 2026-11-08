@@ -146,7 +146,9 @@
     });
 
     $('#export-all').addEventListener('click', () => {
-      download('volleyball-stats-backup-' + today + '.json', JSON.stringify(db, null, 1), 'application/json');
+      // Never put the server access token in a file people pass around.
+      const safe = Object.assign({}, db, { prefs: Object.assign({}, db.prefs, { serverToken: '' }) });
+      download('volleyball-stats-backup-' + today + '.json', JSON.stringify(safe, null, 1), 'application/json');
     });
 
     $('#import-file').addEventListener('change', async (e) => {
@@ -288,6 +290,10 @@
     let flashTimer = null;
     let lastFocusId = null;
     const undoStack = [];
+    let videoFile = null;       // the File behind a local video, for upload
+    let analyzing = null;       // { msg, frac, error } while a server job runs
+    let disposed = false;
+    let rallyTimer = null;
 
     const playerById = (pid) => team.players.find((p) => p.id === pid);
     const playerName = (pid) => {
@@ -324,6 +330,7 @@
             </select>
             <button class="btn small subtle" id="change-video">Change video</button>
           </div>
+          <div id="timeline" class="timeline hidden" title="Rallies found by the analysis server. Click to jump."></div>
           <div id="clipbar" class="clipbar hidden"></div>
           <div id="scorebar" class="scorebar"></div>
           <div id="pad" class="pad"></div>
@@ -332,6 +339,7 @@
           <div class="tabs" role="tablist">
             <button data-tab="log">Log</button>
             <button data-tab="stats">Box score</button>
+            <button data-tab="rallies">Rallies</button>
             <button data-tab="options">Shortcuts & options</button>
           </div>
           <div id="panel" class="panel"></div>
@@ -364,6 +372,7 @@
           if (!await Dialog.confirm(`This match was tagged against "${prev.name}". Use "${file.name}" anyway? Existing timestamps may not line up.`, { okLabel: 'Use it' })) { e.target.value = ''; return; }
         }
         player = VideoPlayer.fromFile(videoBox, file);
+        videoFile = file;
         m.video = { kind: 'file', name: file.name };
         Store.save();
         applyRate();
@@ -380,6 +389,7 @@
       videoBox.innerHTML = '<div class="video-empty"><p class="muted">Loading YouTube…</p></div>';
       try {
         player = await VideoPlayer.fromYouTube(videoBox, vid);
+        videoFile = null;
         m.video = { kind: 'youtube', url: url.trim(), id: vid };
         Store.save();
         applyRate();
@@ -583,6 +593,7 @@
       app.querySelectorAll('[data-tab]').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
       if (tab === 'log') renderLog();
       else if (tab === 'stats') renderStats();
+      else if (tab === 'rallies') renderRallies();
       else renderOptions();
     }
     app.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => { tab = b.dataset.tab; renderTabs(); }));
@@ -735,6 +746,7 @@
           <tr><td><kbd>U</kbd> or <kbd>Ctrl</kbd>+<kbd>Z</kbd></td><td>Undo last tag</td></tr>
           <tr><td><kbd>Esc</kbd></td><td>Cancel current tag / stop clips</td></tr>
           <tr><td><kbd>N</kbd> / <kbd>P</kbd></td><td>Next / previous clip while playing clips</td></tr>
+          <tr><td><kbd>[</kbd> / <kbd>]</kbd></td><td>Previous / next rally (after finding rallies)</td></tr>
         </table>
         <h3>Options</h3>
         <label class="check"><input type="checkbox" id="opt-pause" ${prefs.autoPause ? 'checked' : ''}> Pause video while tagging, resume after</label>
@@ -742,12 +754,217 @@
           <label>Clip starts <input type="number" id="opt-pre" min="0" max="30" step="1" value="${prefs.preroll}" class="num-input"> s before tag</label>
           <label>and ends <input type="number" id="opt-post" min="0" max="30" step="1" value="${prefs.postroll}" class="num-input"> s after</label>
         </div>
+        <h3>Analysis server</h3>
+        <p class="muted small">Finds rallies automatically. Your video is uploaded to this server and deleted after the server's retention period (30 days by default) or when you delete it.</p>
+        <div class="form-grid">
+          <label>Server address<input id="opt-server" placeholder="https://analysis.example.com" value="${esc(prefs.serverUrl)}"></label>
+          <label>Access token<input id="opt-token" type="password" autocomplete="off" value="${esc(prefs.serverToken)}"></label>
+          <button class="btn small" id="opt-test" type="button">Test connection</button>
+        </div>
+        <p class="small" id="opt-test-result"></p>
         <h3>How points are scored</h3>
         <p class="muted small">Aces, kills and blocks give your team the point; errors, blocked attacks and 0-passes give it to the opponent.
         Use the +1 buttons for rallies that end without one of your players' contacts. Tap the point badge on any log row to fix it.</p>`;
       $('#opt-pause').addEventListener('change', (e) => { prefs.autoPause = e.target.checked; Store.save(); });
       $('#opt-pre').addEventListener('change', (e) => { prefs.preroll = Math.max(0, +e.target.value || 0); Store.save(); });
       $('#opt-post').addEventListener('change', (e) => { prefs.postroll = Math.max(0, +e.target.value || 0); Store.save(); });
+      $('#opt-server').addEventListener('change', (e) => { prefs.serverUrl = e.target.value.trim(); Store.save(); });
+      $('#opt-token').addEventListener('change', (e) => { prefs.serverToken = e.target.value.trim(); Store.save(); });
+      $('#opt-test').addEventListener('click', async () => {
+        prefs.serverUrl = $('#opt-server').value.trim();
+        prefs.serverToken = $('#opt-token').value.trim();
+        Store.save();
+        const out = $('#opt-test-result');
+        out.className = 'small muted';
+        out.textContent = 'Checking…';
+        try {
+          await Analysis.health(prefs);
+          // health is public; listing videos proves the token works too.
+          await fetch(prefs.serverUrl.replace(/\/+$/, '') + '/api/videos', { headers: prefs.serverToken ? { Authorization: 'Bearer ' + prefs.serverToken } : {} })
+            .then((r) => { if (r.status === 401) throw new Error('Connected, but the access token was rejected.'); });
+          out.className = 'small good-text';
+          out.textContent = 'Connected.';
+        } catch (err) {
+          out.className = 'small warn';
+          out.textContent = err.message;
+        }
+      });
+    }
+
+    // ----- Automatic rally finding (analysis server) -----
+    const ralliesOf = () => (m.analysis && m.analysis.status === 'done' && m.analysis.rallies) || [];
+
+    function renderRallies() {
+      const a = m.analysis;
+      const rallies = ralliesOf();
+      const angle = m.analysisAngle || 'endline';
+      let body;
+      if (!Analysis.configured(prefs)) {
+        body = `<p class="muted">Connect an analysis server to find rallies automatically.</p>
+          <button class="btn small" id="go-options">Open server settings</button>`;
+      } else {
+        const canRun = !!videoFile && !analyzing;
+        body = `
+          <div class="row wrap">
+            <label>Camera
+              <select id="an-angle">
+                ${[['endline', 'End line'], ['sideline', 'Sideline'], ['other', 'Other']].map(([v, l]) =>
+                  `<option value="${v}" ${angle === v ? 'selected' : ''}>${l}</option>`).join('')}
+              </select>
+            </label>
+            <button class="btn small primary" id="an-run" ${canRun ? '' : 'disabled'}>${rallies.length ? 'Analyze again' : 'Find rallies'}</button>
+          </div>
+          ${!videoFile && !analyzing ? `<p class="muted small">${m.video && m.video.kind === 'youtube'
+            ? 'YouTube videos can\'t be uploaded for analysis. Load the match from a video file instead.'
+            : 'Choose the match video file first; it is uploaded to the analysis server.'}</p>` : ''}
+          ${analyzing ? `
+            <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(analyzing.frac * 100)}">
+              <div style="width:${Math.round(analyzing.frac * 100)}%"></div></div>
+            <p class="small muted" id="an-msg">${esc(analyzing.msg)}</p>` : ''}
+          ${a && a.error ? `<p class="small warn">${esc(a.error)}</p>` : ''}`;
+      }
+      const list = rallies.length ? `
+        <p class="small"><b>${rallies.length} rallies</b> <span class="muted">found by ${a.method === 'motion' ? 'court motion' : 'whistles + court motion'}
+          in ${esc(a.videoName || 'the video')}. Check them before relying on them.</span></p>
+        ${m.video && m.video.name && a.videoName && m.video.name !== a.videoName ? `<p class="small warn">These were found in "${esc(a.videoName)}", not the video that's loaded.</p>` : ''}
+        <label class="check"><input type="checkbox" id="an-skip" ${prefs.skipDead ? 'checked' : ''}> Skip dead time between rallies while playing</label>
+        <p class="muted small">Jump between rallies with <kbd>[</kbd> and <kbd>]</kbd>.</p>
+        <ol class="rally-list">
+          ${rallies.map((r, i) => `<li>
+            <button class="time" data-rally="${i}">${fmtTime(r.start)}</button>
+            <span>Rally ${i + 1}</span>
+            <span class="muted small">${Math.round(r.end - r.start)}s</span>
+            <span class="conf ${r.confidence >= 0.75 ? 'hi' : r.confidence >= 0.5 ? 'mid' : 'lo'}" title="How sure the finder is">${Math.round(r.confidence * 100)}%</span>
+          </li>`).join('')}
+        </ol>
+        <div class="row wrap">
+          <button class="btn small subtle" id="an-clear">Clear results</button>
+          ${a.serverVideoId ? '<button class="btn small subtle danger" id="an-delete">Delete video from server</button>' : ''}
+        </div>` : '';
+      $('#panel').innerHTML = `<h3>Rallies</h3>${body}${list}`;
+
+      const go = $('#go-options');
+      if (go) go.addEventListener('click', () => { tab = 'options'; renderTabs(); });
+      const angleSel = $('#an-angle');
+      if (angleSel) angleSel.addEventListener('change', (e) => { m.analysisAngle = e.target.value; Store.save(); });
+      const run = $('#an-run');
+      if (run) run.addEventListener('click', runAnalysis);
+      const skip = $('#an-skip');
+      if (skip) skip.addEventListener('change', (e) => { prefs.skipDead = e.target.checked; Store.save(); });
+      $('#panel').querySelectorAll('[data-rally]').forEach((b) => b.addEventListener('click', () => {
+        const r = rallies[+b.dataset.rally];
+        if (player) { stopClips(); player.seek(r.start - 1); player.play(); }
+      }));
+      const clear = $('#an-clear');
+      if (clear) clear.addEventListener('click', async () => {
+        if (!await Dialog.confirm('Clear the rallies found for this match?', { okLabel: 'Clear' })) return;
+        m.analysis = null;
+        Store.save();
+        renderTimeline();
+        renderRallies();
+      });
+      const del = $('#an-delete');
+      if (del) del.addEventListener('click', async () => {
+        if (!await Dialog.confirm('Delete this match video from the analysis server? The rallies found stay here.', { okLabel: 'Delete', danger: true })) return;
+        try {
+          await Analysis.removeVideo(prefs, a.serverVideoId);
+        } catch (err) {
+          if (!/not found/i.test(err.message)) { Dialog.alert(err.message); return; }
+        }
+        a.serverVideoId = null;
+        Store.save();
+        flash('Deleted from server');
+        renderRallies();
+      });
+    }
+
+    function showProgress(frac, msg) {
+      analyzing = { frac, msg };
+      if (tab === 'rallies') renderRallies();
+    }
+
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    async function runAnalysis() {
+      if (!videoFile || analyzing) return;
+      const file = videoFile;
+      try {
+        showProgress(0, 'Uploading 0%');
+        const v = await Analysis.upload(prefs, file, { angle: m.analysisAngle || 'endline', matchRef: m.id },
+          (f) => showProgress(f * 0.5, 'Uploading ' + Math.round(f * 100) + '%'));
+        const j = await Analysis.analyze(prefs, v.id, ['rallies']);
+        m.analysis = { status: 'running', serverVideoId: v.id, jobId: j.id, videoName: file.name };
+        Store.save();
+        await pollJob();
+      } catch (err) {
+        analyzing = null;
+        m.analysis = Object.assign({}, m.analysis || {}, { status: 'failed', error: err.message });
+        Store.save();
+        if (!disposed && tab === 'rallies') renderRallies();
+      }
+    }
+
+    async function pollJob() {
+      const a = m.analysis;
+      while (!disposed) {
+        const j = await Analysis.job(prefs, a.jobId);
+        if (j.status === 'done') {
+          const r = j.result.rallies;
+          Object.assign(a, { status: 'done', error: null, method: r.method, rallies: r.rallies,
+            durationS: j.result.duration_s, at: Date.now() });
+          Store.save();
+          analyzing = null;
+          if (disposed) return;
+          renderTimeline();
+          if (tab === 'rallies') renderRallies();
+          flash(`Found ${r.rallies.length} rallies`);
+          return;
+        }
+        if (j.status === 'failed') throw new Error('Analysis failed: ' + (j.error || 'unknown error'));
+        showProgress(0.5 + 0.5 * (j.progress || 0), j.status === 'queued' ? 'Waiting for the server…' : (j.message || 'Analyzing…'));
+        await sleep(2000);
+      }
+    }
+
+    function renderTimeline() {
+      const el = $('#timeline');
+      const rallies = ralliesOf();
+      const dur = m.analysis && m.analysis.durationS;
+      if (!rallies.length || !dur) { el.classList.add('hidden'); el.innerHTML = ''; return; }
+      el.classList.remove('hidden');
+      el.innerHTML = rallies.map((r, i) =>
+        `<span class="tl-rally" data-rally="${i}" style="left:${(r.start / dur) * 100}%;width:${Math.max(0.3, ((r.end - r.start) / dur) * 100)}%"></span>`
+      ).join('') + '<span class="tl-head" id="tl-head"></span>';
+      el.onclick = (e) => {
+        if (!player) return;
+        const hit = e.target.closest('[data-rally]');
+        const t = hit ? rallies[+hit.dataset.rally].start - 1 : ((e.clientX - el.getBoundingClientRect().left) / el.clientWidth) * dur;
+        stopClips();
+        player.seek(t);
+      };
+    }
+
+    function jumpRally(dir) {
+      const rallies = ralliesOf();
+      if (!player || !rallies.length) return;
+      const t = player.time();
+      const target = dir > 0
+        ? rallies.find((r) => r.start - 1 > t + 0.5)
+        : [...rallies].reverse().find((r) => r.start - 1 < t - 2);
+      if (target) { stopClips(); player.seek(target.start - 1); }
+    }
+
+    function tickRallies() {
+      const rallies = ralliesOf();
+      if (!player || !rallies.length) return;
+      const t = player.time();
+      const head = $('#tl-head');
+      if (head && m.analysis.durationS) head.style.left = Math.min(100, (t / m.analysis.durationS) * 100) + '%';
+      if (!prefs.skipDead || clips || pending || player.paused()) return;
+      const inRally = rallies.some((r) => t >= r.start - 2 && t <= r.end + 1.5);
+      if (inRally) return;
+      const next = rallies.find((r) => r.start - 2 > t);
+      if (next) player.seek(next.start - 1.5);
     }
 
     // ----- Clip playback -----
@@ -879,6 +1096,7 @@
       if (k === '+' || k === '=') { teamPoint('opperr'); return; }
       if (k === '-') { teamPoint('opppt'); return; }
       if (k === 'u') { undo(); return; }
+      if (k === ']' || k === '[') { jumpRally(k === ']' ? 1 : -1); return; }
       const skill = Object.keys(SKILLS).find((s) => SKILLS[s].key === k.toLowerCase());
       if (skill) {
         if (keyBuf && !resolveJersey()) { renderPad(); return; }
@@ -902,8 +1120,23 @@
       renderTabs();
     }
     refresh();
+    renderTimeline();
+    rallyTimer = setInterval(tickRallies, 250);
+    // Pick up a job that was still running when the match was last open.
+    if (m.analysis && m.analysis.status === 'running' && Analysis.configured(prefs)) {
+      showProgress(0.5, 'Checking on the analysis…');
+      pollJob().catch((err) => {
+        analyzing = null;
+        m.analysis.status = 'failed';
+        m.analysis.error = err.message;
+        Store.save();
+        if (!disposed && tab === 'rallies') renderRallies();
+      });
+    }
 
     cleanup = () => {
+      disposed = true;
+      clearInterval(rallyTimer);
       document.removeEventListener('keydown', onKey);
       clearInterval(clipTimer);
       clearTimeout(flashTimer);

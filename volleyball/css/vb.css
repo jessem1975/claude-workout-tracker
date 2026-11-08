@@ -172,3 +172,17 @@ table.keys td { padding: 4px 8px 4px 0; vertical-align: top; }
   padding: 18px; width: min(420px, 100%); display: flex; flex-direction: column; gap: 14px; box-shadow: 0 12px 40px var(--shadow); }
 .dialog-msg { margin: 0; line-height: 1.45; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.timeline { position: relative; height: 14px; background: var(--surface-2); border-radius: 7px; margin: 0 0 10px; cursor: pointer; overflow: hidden; }
+.tl-rally { position: absolute; top: 2px; bottom: 2px; background: var(--accent); border-radius: 3px; opacity: .8; }
+.tl-head { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--text); pointer-events: none; }
+.progress { height: 8px; background: var(--surface-2); border-radius: 4px; overflow: hidden; margin-top: 10px; }
+.progress > div { height: 100%; background: var(--accent); transition: width .3s; }
+.rally-list { list-style: none; padding: 0; margin: 8px 0; }
+.rally-list li { display: flex; align-items: center; gap: 10px; padding: 4px 0; border-top: 1px solid var(--border); }
+.rally-list li > span:nth-child(2) { flex: 1; }
+.rally-list .time { font: .85rem ui-monospace, monospace; background: none; border: 0; color: var(--accent); cursor: pointer; padding: 4px; min-width: 56px; text-align: left; }
+.conf { font-size: .75rem; border-radius: 6px; padding: 1px 6px; border: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+.conf.hi { color: var(--good); border-color: var(--good); }
+.conf.mid { color: var(--warn); border-color: var(--warn); }
+.conf.lo { color: var(--bad); border-color: var(--bad); }
+.good-text { color: var(--good); }

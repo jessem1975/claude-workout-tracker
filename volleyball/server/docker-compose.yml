@@ -1,0 +1,18 @@
+# One small server running the API and one worker, sharing a data volume.
+# Put a TLS-terminating proxy (Caddy, nginx, or the host's load balancer)
+# in front of port 8000 for anything beyond local testing.
+services:
+  api:
+    build: .
+    ports: ["8000:8000"]
+    env_file: .env
+    volumes: [vbdata:/data]
+    restart: unless-stopped
+  worker:
+    build: .
+    command: ["python", "-m", "app.worker"]
+    env_file: .env
+    volumes: [vbdata:/data]
+    restart: unless-stopped
+volumes:
+  vbdata:

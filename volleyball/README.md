@@ -31,7 +31,11 @@ It works best on a laptop with a keyboard. Tablets and phones work with the tap 
 5. **Review**: the *Box score* tab shows each player's stats. Tap any number
    to filter the log to those plays, then **▶ Play clips** to watch them
    back to back (4s before to 3s after each tag; adjustable).
-6. **Export**: events CSV, box-score CSV, or a match JSON file you can share
+6. **Find rallies (optional).** With an analysis server connected
+   (*Shortcuts & options*), the **Rallies** tab uploads the video and marks
+   every rally on a timeline. Jump between rallies with `[` and `]`, or
+   skip the dead time between them while you watch and tag.
+7. **Export**: events CSV, box-score CSV, or a match JSON file you can share
    or import on another device. *Export all* on the home screen backs up everything.
 
 ### Stats tracked
@@ -57,7 +61,10 @@ Tap the badge on a log row to correct it. Sets end at 25 (15 in set 5), win by 2
 | `js/model.js` | Skill definitions, scoring, box-score math. Pure functions, no DOM. |
 | `js/store.js` | All persistence (currently `localStorage`), schema version and migrations, import/export. |
 | `js/player.js` | One interface over a local `<video>` and the YouTube IFrame player. |
-| `js/app.js` | UI: routing, match list, rosters, tagging screen, keyboard shortcuts, clips. |
+| `js/app.js` | UI: routing, match list, rosters, tagging screen, keyboard shortcuts, clips, rally finder. |
+| `js/analysis.js` | Client for the analysis server: upload, start a job, poll for results. |
+| `js/dialog.js`, `js/sample.js` | In-page dialogs; the demo "sample match". |
+| `server/` | Python analysis server (finds rallies automatically). See [server/README.md](server/README.md). |
 
 ## Path to commercialization
 
