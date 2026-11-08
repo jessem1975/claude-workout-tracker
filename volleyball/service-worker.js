@@ -1,10 +1,12 @@
-const CACHE_NAME = 'vb-stats-v1';
+const CACHE_NAME = 'vb-stats-v2';
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
   './css/vb.css',
   './js/model.js',
+  './js/dialog.js',
+  './js/sample.js',
   './js/store.js',
   './js/player.js',
   './js/app.js',

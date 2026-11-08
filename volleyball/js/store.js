@@ -29,7 +29,7 @@ const Store = (() => {
     try {
       localStorage.setItem(KEY, JSON.stringify(db));
     } catch (e) {
-      alert('Could not save — browser storage may be full. Export a backup.');
+      window.dispatchEvent(new CustomEvent('store-error', { detail: 'Could not save. Browser storage may be full or blocked; export a backup.' }));
     }
   }
 
@@ -46,14 +46,15 @@ const Store = (() => {
   }
 
   // Merge a single exported match (and its team, if we don't have it).
-  function importMatch(data) {
+  // Returns false (and changes nothing) if the match exists and replace is false.
+  function importMatch(data, replace) {
     if (!data || !data.match || !Array.isArray(data.match.events)) {
       throw new Error('Not a match export file');
     }
-    if (data.team && !db.teams.some((t) => t.id === data.team.id)) db.teams.push(data.team);
     const i = db.matches.findIndex((m) => m.id === data.match.id);
+    if (i >= 0 && !replace) return false;
+    if (data.team && !db.teams.some((t) => t.id === data.team.id)) db.teams.push(data.team);
     if (i >= 0) {
-      if (!confirm('This match already exists. Replace it with the imported copy?')) return false;
       db.matches[i] = data.match;
     } else {
       db.matches.push(data.match);

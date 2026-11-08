@@ -26,6 +26,17 @@
     }).join(',')).join('\n');
   }
 
+  let toastTimer = null;
+  function toast(msg) {
+    let el = document.getElementById('toast');
+    if (!el) { el = document.createElement('div'); el.id = 'toast'; el.className = 'flash'; document.body.appendChild(el); }
+    el.textContent = msg;
+    el.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.hidden = true; }, 2200);
+  }
+  window.addEventListener('store-error', (e) => toast(e.detail));
+
   const slug = (s) => String(s || 'match').replace(/[^\w-]+/g, '_').slice(0, 60);
 
   function readJsonFile(file) {
@@ -76,7 +87,8 @@
       </section>
       <section class="card">
         <h2>Matches</h2>
-        ${matches.length === 0 ? '<p class="muted">No matches yet.</p>' : `
+        ${matches.length === 0 ? `<p class="muted">No matches yet. Want to look around first?</p>
+          <button class="btn" id="load-sample">Load a sample match</button>` : `
         <ul class="list">
           ${matches.map((m) => {
             const t = teamById(m.teamId);
@@ -116,13 +128,22 @@
       location.hash = '#/match/' + m.id;
     });
 
-    app.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', () => {
+    app.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', async () => {
       const m = matchById(b.dataset.del);
-      if (!confirm(`Delete match vs ${m.opponent} and its ${m.events.length} events?`)) return;
+      if (!await Dialog.confirm(`Delete the match vs ${m.opponent} and its ${m.events.length} events?`, { okLabel: 'Delete', danger: true })) return;
       db.matches.splice(db.matches.indexOf(m), 1);
       Store.save();
       renderHome();
     }));
+
+    const sampleBtn = $('#load-sample');
+    if (sampleBtn) sampleBtn.addEventListener('click', () => {
+      const { team, match } = Sample.build();
+      db.teams.push(team);
+      db.matches.push(match);
+      Store.save();
+      location.hash = '#/match/' + match.id;
+    });
 
     $('#export-all').addEventListener('click', () => {
       download('volleyball-stats-backup-' + today + '.json', JSON.stringify(db, null, 1), 'application/json');
@@ -134,14 +155,16 @@
       try {
         const data = await readJsonFile(file);
         if (data.match) {
-          if (Store.importMatch(data)) alert('Match imported.');
+          let ok = Store.importMatch(data, false);
+          if (!ok && await Dialog.confirm('This match is already here. Replace it with the imported copy?', { okLabel: 'Replace' })) ok = Store.importMatch(data, true);
+          if (ok) toast('Match imported');
         } else {
-          if (!confirm('Replace ALL data in this browser with this backup?')) return;
+          if (!await Dialog.confirm('Replace ALL teams and matches in this browser with this backup?', { okLabel: 'Replace all', danger: true })) return;
           Store.replace(data);
         }
         renderHome();
       } catch (err) {
-        alert('Import failed: ' + err.message);
+        Dialog.alert('Import failed: ' + err.message);
       }
     });
   }
@@ -215,7 +238,7 @@
       e.preventDefault();
       const f = new FormData(e.target);
       const number = f.get('number').trim();
-      if (players.some((p) => p.number === number)) { alert('Jersey #' + number + ' is already on the roster.'); return; }
+      if (players.some((p) => p.number === number)) { Dialog.alert('Jersey #' + number + ' is already on the roster.'); return; }
       team.players.push({ id: Store.uid(), number, name: f.get('name').trim(), pos: f.get('pos') });
       Store.save();
       renderTeam(id);
@@ -232,13 +255,13 @@
       Store.save();
       renderTeam(id);
     }));
-    $('#rename').addEventListener('click', () => {
-      const name = prompt('Team name', team.name);
+    $('#rename').addEventListener('click', async () => {
+      const name = await Dialog.prompt('Team name', team.name);
       if (name && name.trim()) { team.name = name.trim(); Store.save(); renderTeam(id); }
     });
-    $('#delete-team').addEventListener('click', () => {
+    $('#delete-team').addEventListener('click', async () => {
       const n = db.matches.filter((m) => m.teamId === id).length;
-      if (!confirm(`Delete ${team.name}${n ? ` and its ${n} match(es)` : ''}?`)) return;
+      if (!await Dialog.confirm(`Delete ${team.name}${n ? ` and its ${n} match(es)` : ''}?`, { okLabel: 'Delete', danger: true })) return;
       db.matches = db.matches.filter((m) => m.teamId !== id);
       db.teams.splice(db.teams.indexOf(team), 1);
       Store.save();
@@ -334,11 +357,11 @@
           ${prev && prev.kind === 'file' ? `<p class="muted">Last used: <strong>${esc(prev.name)}</strong> — choose it again to keep timestamps in sync.</p>` : ''}
           <p class="muted small">No video? You can still tag live; events just won't have clip timestamps.</p>
         </div>`;
-      $('#video-file').addEventListener('change', (e) => {
+      $('#video-file').addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
         if (prev && prev.kind === 'file' && prev.name !== file.name && m.events.some((ev) => ev.t != null)) {
-          if (!confirm(`This match was tagged against "${prev.name}". Use "${file.name}" anyway? Existing timestamps may not line up.`)) return;
+          if (!await Dialog.confirm(`This match was tagged against "${prev.name}". Use "${file.name}" anyway? Existing timestamps may not line up.`, { okLabel: 'Use it' })) { e.target.value = ''; return; }
         }
         player = VideoPlayer.fromFile(videoBox, file);
         m.video = { kind: 'file', name: file.name };
