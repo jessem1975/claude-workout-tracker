@@ -461,7 +461,8 @@ const App = {
   },
 
   _scrollToTop() {
-    window.scrollTo({ top: 0, behavior: 'instant' });
+    const app = document.getElementById('app');
+    if (app) app.scrollTo({ top: 0, behavior: 'instant' });
   },
 
   _renderExerciseCard(session, exerciseId) {
@@ -683,21 +684,17 @@ const App = {
     });
 
     // Coming back from another app: catch the countdown up right away (the
-    // interval is frozen while backgrounded) and make iOS re-lay-out the dock,
-    // which otherwise can come back stuck in the wrong spot over the page.
+    // interval is frozen while backgrounded). Also undo any page shift iOS
+    // leaves behind after the keyboard closes or the app is resumed.
     const resync = () => {
       if (document.visibilityState !== 'visible') return;
       if (this.restTimer && this.restTimer.running) this.restTimer._tick();
-      const dock = document.getElementById('bottom-dock');
-      if (dock) {
-        dock.style.display = 'none';
-        void dock.offsetHeight;
-        dock.style.display = '';
-      }
+      if (window.scrollY) window.scrollTo(0, 0);
     };
     document.addEventListener('visibilitychange', resync);
     window.addEventListener('pageshow', resync);
     window.addEventListener('focus', resync);
+    document.addEventListener('focusout', () => setTimeout(resync, 50));
   },
 
   // ---------------- HISTORY ----------------

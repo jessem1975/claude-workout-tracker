@@ -44,16 +44,29 @@ html, body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* App-shell layout: the page itself never scrolls. #app is the scrolling
+   area and the bottom dock (rest timer + nav) is a normal row underneath it,
+   not a floating element. iOS can mis-place position:fixed elements after the
+   keyboard opens or the app returns from the background; this layout has
+   nothing for it to mis-place. */
 body {
-  /* leave room for the bottom dock (nav + home-bar area) */
-  padding-bottom: calc(88px + env(safe-area-inset-bottom));
-  min-height: 100vh;
+  position: fixed;
+  inset: 0;
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 #app {
-  max-width: 640px;
-  margin: 0 auto;
-  padding: 16px 16px 24px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  /* keep the 640px content column centered inside the full-width scroller */
+  padding: calc(16px + env(safe-area-inset-top)) max(16px, calc((100% - 640px) / 2 + 16px)) 24px;
 }
 
 h1 { font-size: 1.8rem; margin: 0 0 6px; line-height: 1.2; }
@@ -336,17 +349,13 @@ button.link-btn {
 .trend-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
 .trend-table th, .trend-table td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--surface-2); }
 
-/* Rest banner and nav share one fixed container, so iOS can't separate them
-   or leave the banner stranded over the page after the app is backgrounded. */
 .bottom-dock {
-  position: fixed;
-  bottom: 0; left: 0; right: 0;
+  flex: 0 0 auto;
+  position: relative;
   z-index: 30;
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
+  padding-top: 8px;
+  background: transparent;
 }
-/* while resting, add room so the last sets can scroll clear of the banner */
-body.resting { padding-bottom: calc(180px + env(safe-area-inset-bottom)); }
 
 .bottom-nav {
   display: flex;
