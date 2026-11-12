@@ -57,7 +57,6 @@ const VIDEOS = {
   'lying-leg-curl': { title: 'Gym Tip: Lying Leg Curl', url: 'https://www.youtube.com/shorts/WKFzO6U6lE4', channel: null },
   'standing-cable-hip-abduction': { title: 'Standing Cable Hip Abductions', url: 'https://www.youtube.com/shorts/no8JrJ4wxIw', channel: null },
   'seated-calf-raise-paused': { title: 'Seated Calf Raise', url: 'https://www.youtube.com/shorts/NrHJPauB01I', channel: null },
-  'hanging-knee-raise-controlled': { title: 'How To Do Hanging Knee Raises', url: 'https://www.youtube.com/shorts/IHOFHNWn0_M', channel: null },
   'chest-supported-t-bar-row': { title: 'Chest Supported T Bar Row (How To)', url: 'https://www.youtube.com/shorts/Mlr-Lx-10HQ', channel: null },
   'neutral-grip-lat-pulldown-heavy': { title: 'Neutral Grip Lat Pull Down', url: 'https://www.youtube.com/shorts/23ZlW450jjg', channel: null },
   'machine-shoulder-press-neutral-grip': { title: 'Machine Shoulder Press (Neutral Grip)', url: 'https://www.youtube.com/watch?v=RYVe9WlQcC4', channel: null },
