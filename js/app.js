@@ -965,3 +965,12 @@ document.addEventListener('DOMContentLoaded', () => {
   App.initWakeLock();
   App.init();
 });
+
+// iOS sometimes restores a backgrounded standalone (home-screen) PWA from
+// its page cache in a frozen state — the UI is visible but nothing responds
+// to taps until the app is force-closed and relaunched. `pageshow` firing
+// with `persisted: true` is how we detect that restore; a real reload gets
+// a fresh, responsive page instead of leaving the user stuck.
+window.addEventListener('pageshow', (event) => {
+  if (event.persisted) location.reload();
+});
