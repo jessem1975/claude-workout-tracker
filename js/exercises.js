@@ -143,6 +143,14 @@ const EXERCISES = {
     sets: 3, repRange: [8, 12], restSec: 45, increment: 0,
     caution: 'Reps per side. Keep low back flat on the floor the whole time.'
   },
+  // id kept as the imported Upper/Lower plan's original slug so this
+  // built-in entry (which EXERCISES wins over a same-id custom exercise)
+  // swaps in as the Lower-day substitute without touching anyone's saved plan.
+  'hanging-knee-raise-controlled': {
+    id: 'hanging-knee-raise-controlled', name: 'Lying Leg Raise', category: 'core', type: 'weight',
+    sets: 3, repRange: [10, 15], restSec: 45, increment: 0,
+    caution: 'Shoulder-friendly substitute for the hanging knee raise — no bar grip or overhead reach, so there\'s no load through the shoulder. Keep your lower back pressed into the floor and lift with your abs, not momentum.'
+  },
   'bike-intervals': {
     id: 'bike-intervals', name: 'Stationary Bike Intervals', category: 'conditioning', type: 'time',
     sets: 6, timeRange: [30, 60], restSec: 60, timeIncrement: 5,
